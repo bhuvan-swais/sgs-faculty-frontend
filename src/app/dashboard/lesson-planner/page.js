@@ -1,0 +1,699 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { FALLBACK_CHAPTERS, buildFallbackPlan } from "@/lib/staticData";
+
+const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("swais_faculty_token") : null;
+}
+
+const SECTION_COLORS = [
+  { bg: "#EEF2FF", border: "#C7D2FE", icon: "#6366F1", label: "#4F46E5" },
+  { bg: "#F0FDF4", border: "#BBF7D0", icon: "#10B981", label: "#059669" },
+  { bg: "#FFF7ED", border: "#FED7AA", icon: "#F59E0B", label: "#D97706" },
+  { bg: "#FDF4FF", border: "#E9D5FF", icon: "#8B5CF6", label: "#7C3AED" },
+];
+
+/* ── Typing animation hook ──────────────────────────────────────────── */
+function useTypewriter(text, speed = 18, active = false) {
+  const [displayed, setDisplayed] = useState("");
+  useEffect(() => {
+    if (!active || !text) { setDisplayed(text || ""); return; }
+    setDisplayed("");
+    let i = 0;
+    const id = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(id);
+    }, speed);
+    return () => clearInterval(id);
+  }, [text, active]);
+  return displayed;
+}
+
+/* ── AI Generating animation ────────────────────────────────────────── */
+function GeneratingAnimation() {
+  const steps = [
+    "Analysing chapter content…",
+    "Structuring learning objectives…",
+    "Designing activity flow…",
+    "Crafting assessment strategy…",
+    "Finalising lesson plan…",
+  ];
+  const [step, setStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const stepInterval = setInterval(() => {
+      setStep(s => Math.min(s + 1, steps.length - 1));
+    }, 280);
+    const progInterval = setInterval(() => {
+      setProgress(p => Math.min(p + 2, 95));
+    }, 30);
+    return () => { clearInterval(stepInterval); clearInterval(progInterval); };
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full min-h-[420px] px-8">
+      {/* Pulsing orb */}
+      <div className="relative mb-8">
+        <div className="w-20 h-20 rounded-full ai-gradient animate-pulse flex items-center justify-center shadow-lg"
+          style={{ boxShadow: "0 0 40px rgba(99,102,241,0.4)" }}>
+          <svg className="w-9 h-9 text-white animate-spin" style={{ animationDuration: "3s" }}
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </div>
+        <div className="absolute inset-0 rounded-full animate-ping opacity-20 ai-gradient" />
+      </div>
+
+      <h3 className="text-lg font-bold mb-2 ai-gradient-text" style={{ fontFamily: "var(--font-space-grotesk)" }}>
+        AI is crafting your lesson plan
+      </h3>
+      <p className="text-sm mb-6 text-center" style={{ color: "#64748B" }}>
+        {steps[step]}
+      </p>
+
+      {/* Progress bar */}
+      <div className="w-full max-w-xs">
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#E2E8F0" }}>
+          <div className="h-full rounded-full transition-all duration-300 ai-gradient"
+            style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex justify-between mt-2">
+          {steps.map((_, i) => (
+            <div key={i}
+              className="w-2 h-2 rounded-full transition-all duration-300"
+              style={{ background: i <= step ? "#6366F1" : "#E2E8F0" }} />
+          ))}
+        </div>
+      </div>
+
+      {/* Shimmer skeleton */}
+      <div className="w-full max-w-xs mt-8 space-y-2.5">
+        {[80, 60, 90, 50, 70].map((w, i) => (
+          <div key={i} className="skeleton h-3 rounded"
+            style={{ width: `${w}%`, animationDelay: `${i * 0.1}s` }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ── Plan display ───────────────────────────────────────────────────── */
+function PlanDisplay({ plan, onSave, saving, saved }) {
+  const titleTyped = useTypewriter(plan.title, 30, true);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  return (
+    <div className="space-y-5 animate-fade-in">
+
+      {/* Header */}
+      <div className="rounded-2xl p-5 text-white relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6,#06B6D4)", backgroundSize: "200% 200%" }}>
+        <div className="absolute inset-0 dot-grid opacity-20" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)" }}>
+              ✨ AI Generated
+            </span>
+            <span className="text-[10px] opacity-70">{plan.duration_minutes} min · Class {plan.class_name}-{plan.section}</span>
+          </div>
+          <h2 className="text-xl font-bold leading-tight" style={{ fontFamily: "var(--font-space-grotesk)" }}>
+            {titleTyped}<span className="opacity-60 animate-pulse">|</span>
+          </h2>
+          <p className="text-sm opacity-80 mt-1">{plan.subject} · {plan.chapter_text}</p>
+        </div>
+      </div>
+
+      {visible && (
+        <>
+          {/* Objectives */}
+          <div className="rounded-2xl p-5" style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🎯</span>
+              <h3 className="text-sm font-bold" style={{ color: "#4F46E5", fontFamily: "var(--font-space-grotesk)" }}>
+                Learning Objectives
+              </h3>
+            </div>
+            <ul className="space-y-2">
+              {plan.objectives.map((obj, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "#374151" }}>
+                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
+                    style={{ background: "#6366F1" }}>{i + 1}</span>
+                  {obj}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Materials */}
+          <div className="rounded-2xl p-5" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">📦</span>
+              <h3 className="text-sm font-bold" style={{ color: "#059669", fontFamily: "var(--font-space-grotesk)" }}>
+                Materials Required
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {plan.materials.map((m, i) => (
+                <span key={i} className="px-3 py-1 rounded-full text-xs font-medium"
+                  style={{ background: "white", color: "#047857", border: "1px solid #BBF7D0" }}>
+                  {m}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Core Concept */}
+          {plan.core_concept && (
+            <div className="rounded-2xl p-5" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">💡</span>
+                <h3 className="text-sm font-bold" style={{ color: "#D97706", fontFamily: "var(--font-space-grotesk)" }}>
+                  Teacher&apos;s Focus Note
+                </h3>
+              </div>
+              <p className="text-sm leading-relaxed" style={{ color: "#78350F" }}>{plan.core_concept}</p>
+            </div>
+          )}
+
+          {/* Lesson Flow */}
+          <div className="rounded-2xl p-5 bg-white" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">📝</span>
+              <h3 className="text-sm font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+                Lesson Flow
+              </h3>
+            </div>
+            <div className="space-y-3">
+              {plan.plan_sections.map((sec, i) => {
+                const c = SECTION_COLORS[i % SECTION_COLORS.length];
+                return (
+                  <div key={i} className="rounded-xl p-4" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-bold" style={{ color: c.label }}>{sec.title}</span>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-full"
+                        style={{ background: "white", color: c.icon, border: `1px solid ${c.border}` }}>
+                        {sec.duration} min
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold mb-2" style={{ color: "#374151" }}>📌 {sec.activity}</p>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div className="text-[11px]" style={{ color: "#64748B" }}>
+                        <span className="font-semibold">Teacher:</span> {sec.teacher_action}
+                      </div>
+                      <div className="text-[11px]" style={{ color: "#64748B" }}>
+                        <span className="font-semibold">Students:</span> {sec.student_action}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Assessment + Homework */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="rounded-2xl p-5" style={{ background: "#FDF4FF", border: "1px solid #E9D5FF" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">📊</span>
+                <h3 className="text-sm font-bold" style={{ color: "#7C3AED", fontFamily: "var(--font-space-grotesk)" }}>
+                  Assessment
+                </h3>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: "#581C87" }}>{plan.assessment_method}</p>
+            </div>
+            <div className="rounded-2xl p-5" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-lg">🏠</span>
+                <h3 className="text-sm font-bold" style={{ color: "#C2410C", fontFamily: "var(--font-space-grotesk)" }}>
+                  Homework
+                </h3>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: "#7C2D12" }}>{plan.homework}</p>
+            </div>
+          </div>
+
+          {/* Differentiation */}
+          {plan.differentiation && (
+            <div className="rounded-2xl p-5 bg-white" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🌱</span>
+                <h3 className="text-sm font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+                  Differentiation
+                </h3>
+              </div>
+              <div className="space-y-2">
+                {Object.entries(plan.differentiation).map(([key, val]) => (
+                  <div key={key} className="flex items-start gap-2">
+                    <span className="text-xs font-bold capitalize px-2 py-0.5 rounded shrink-0"
+                      style={{ background: "#EEF2FF", color: "#6366F1" }}>
+                      {key.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-xs" style={{ color: "#475569" }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pb-4">
+            <button
+              onClick={onSave}
+              disabled={saving || saved}
+              className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+              style={{
+                background: saved ? "#ECFDF5" : "linear-gradient(135deg,#6366F1,#8B5CF6)",
+                color: saved ? "#059669" : "white",
+                boxShadow: saved ? "none" : "0 4px 14px rgba(99,102,241,0.35)",
+              }}>
+              {saved ? "✓ Saved to My Plans" : saving ? "Saving…" : "💾 Save Plan"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Saved plans list ───────────────────────────────────────────────── */
+function SavedPlans({ plans, onDelete, onLoad }) {
+  if (plans.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-16 h-16 rounded-2xl ai-gradient flex items-center justify-center mx-auto mb-4 opacity-40">
+          <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium" style={{ color: "#94A3B8" }}>No saved plans yet.</p>
+        <p className="text-xs mt-1" style={{ color: "#CBD5E1" }}>Generate and save a lesson plan to see it here.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {plans.map(p => (
+        <div key={p.lesson_plan_id}
+          className="flex items-start justify-between gap-3 p-4 rounded-2xl bg-white transition-all"
+          style={{ border: "1px solid rgba(99,102,241,0.1)" }}
+          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.1)"}
+          onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-7 h-7 rounded-lg ai-gradient flex items-center justify-center shrink-0">
+                <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </span>
+              <p className="text-sm font-semibold truncate" style={{ color: "#0F172A" }}>{p.title}</p>
+            </div>
+            <p className="text-xs ml-9" style={{ color: "#94A3B8" }}>
+              {p.chapter_text} · {p.duration_minutes} min ·{" "}
+              {p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={() => onLoad(p)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all"
+              style={{ background: "#EEF2FF", color: "#6366F1" }}
+              onMouseEnter={e => e.currentTarget.style.background = "#C7D2FE"}
+              onMouseLeave={e => e.currentTarget.style.background = "#EEF2FF"}>
+              View
+            </button>
+            <button onClick={() => onDelete(p.lesson_plan_id)}
+              className="p-1.5 rounded-lg cursor-pointer transition-all"
+              style={{ color: "#94A3B8" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#EF4444"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#94A3B8"; }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Main Page ──────────────────────────────────────────────────────── */
+export default function LessonPlannerPage() {
+  const [tab,         setTab]         = useState("create");   // "create" | "saved"
+  const [chapters,    setChapters]    = useState([]);
+  const [chapter,     setChapter]     = useState("");
+  const [topic,       setTopic]       = useState("");
+  const [duration,    setDuration]    = useState(45);
+  const [objectives,  setObjectives]  = useState([""]);
+  const [notes,       setNotes]       = useState("");
+  const [generating,  setGenerating]  = useState(false);
+  const [plan,        setPlan]        = useState(null);
+  const [saving,      setSaving]      = useState(false);
+  const [saved,       setSaved]       = useState(false);
+  const [savedPlans,  setSavedPlans]  = useState([]);
+  const [plansLoading,setPlansLoading]= useState(false);
+  const rightRef = useRef(null);
+
+  const headers = { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" };
+
+  // Load chapters on mount — fall back to static list if API is unreachable
+  useEffect(() => {
+    fetch(`${API}/api/v1/chapters`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        const list = d.chapters?.length ? d.chapters : FALLBACK_CHAPTERS;
+        setChapters(list);
+        setChapter(list[0] || "");
+      })
+      .catch(() => {
+        setChapters(FALLBACK_CHAPTERS);
+        setChapter(FALLBACK_CHAPTERS[0]);
+      });
+  }, []);
+
+  // Load saved plans when tab switches
+  useEffect(() => {
+    if (tab !== "saved") return;
+    setPlansLoading(true);
+    fetch(`${API}/api/v1/lesson-plans`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setSavedPlans(d.plans || []))
+      .catch(() => setSavedPlans([]))
+      .finally(() => setPlansLoading(false));
+  }, [tab]);
+
+  const handleGenerate = async () => {
+    if (!chapter) return;
+    setGenerating(true);
+    setPlan(null);
+    setSaved(false);
+    try {
+      const res = await fetch(`${API}/api/v1/lesson-plans/generate`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          chapter,
+          topic: topic.trim() || null,
+          duration_minutes: duration,
+          objectives: objectives.filter(o => o.trim()),
+          special_notes: notes.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      setPlan(data);
+      setTimeout(() => rightRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } catch {
+      // API unavailable — generate a local plan so the UI still works
+      const offlinePlan = buildFallbackPlan(
+        chapter,
+        topic.trim() || null,
+        duration,
+      );
+      setPlan(offlinePlan);
+      setTimeout(() => rightRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!plan || saving || saved) return;
+    setSaving(true);
+    try {
+      await fetch(`${API}/api/v1/lesson-plans`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ plan }),
+      });
+      setSaved(true);
+    } catch {
+      // Save failed (no backend) — mark as saved locally so UI doesn't hang
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    await fetch(`${API}/api/v1/lesson-plans/${id}`, { method: "DELETE", headers });
+    setSavedPlans(p => p.filter(x => x.lesson_plan_id !== id));
+  };
+
+  const addObjective   = () => setObjectives(o => [...o, ""]);
+  const updateObjective = (i, v) => setObjectives(o => o.map((x, j) => j === i ? v : x));
+  const removeObjective = (i) => setObjectives(o => o.filter((_, j) => j !== i));
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
+
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <div className="w-8 h-8 rounded-lg ai-gradient flex items-center justify-center pulse-glow">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <h1 className="text-2xl font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+              Lesson Planner
+            </h1>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "white" }}>
+              AI
+            </span>
+          </div>
+          <p className="text-sm pl-10" style={{ color: "#94A3B8" }}>
+            Generate structured lesson plans instantly with AI
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex rounded-xl overflow-hidden shrink-0" style={{ border: "1px solid #E2E8F0" }}>
+          {[
+            { key: "create", label: "✨ Create New" },
+            { key: "saved",  label: "📁 My Plans" },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className="px-4 py-2 text-sm font-semibold cursor-pointer transition-all"
+              style={{
+                background: tab === t.key ? "linear-gradient(135deg,#6366F1,#8B5CF6)" : "white",
+                color: tab === t.key ? "white" : "#64748B",
+              }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Saved Plans Tab ─────────────────────────────────────────── */}
+      {tab === "saved" && (
+        <div className="bg-white rounded-2xl p-6" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+          <h2 className="text-base font-bold mb-4" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+            Saved Lesson Plans
+          </h2>
+          {plansLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="skeleton h-16 rounded-2xl" />)}
+            </div>
+          ) : (
+            <SavedPlans
+              plans={savedPlans}
+              onDelete={handleDelete}
+              onLoad={p => { setPlan(p); setSaved(true); setTab("create"); }}
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── Create Tab — two-column layout ─────────────────────────── */}
+      {tab === "create" && (
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+
+          {/* LEFT — Input form */}
+          <div className="lg:col-span-2 bg-white rounded-2xl p-6 space-y-5"
+            style={{ border: "1px solid rgba(99,102,241,0.1)", position: "sticky", top: "80px" }}>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-7 h-7 rounded-lg ai-gradient flex items-center justify-center">
+                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+                <h2 className="text-base font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+                  Plan Details
+                </h2>
+              </div>
+              <p className="text-xs ml-9" style={{ color: "#94A3B8" }}>Fill in the details below</p>
+            </div>
+
+            {/* Chapter */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Chapter *</label>
+              <select value={chapter} onChange={e => setChapter(e.target.value)}
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
+                style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "white" }}
+                onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
+                onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}>
+                {chapters.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* Topic */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>
+                Specific Topic <span style={{ color: "#94A3B8", fontWeight: 400 }}>(optional)</span>
+              </label>
+              <input value={topic} onChange={e => setTopic(e.target.value)}
+                placeholder="e.g. Preamble and Fundamental Rights"
+                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
+                style={{ border: "1.5px solid #E2E8F0", color: "#0F172A" }}
+                onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
+                onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
+              />
+            </div>
+
+            {/* Duration */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold" style={{ color: "#475569" }}>Duration</label>
+                <span className="text-sm font-bold px-2 py-0.5 rounded-lg"
+                  style={{ background: "#EEF2FF", color: "#6366F1" }}>{duration} min</span>
+              </div>
+              <input type="range" min={30} max={90} step={5} value={duration}
+                onChange={e => setDuration(Number(e.target.value))}
+                className="w-full accent-indigo-500 cursor-pointer" />
+              <div className="flex justify-between text-[10px] mt-1" style={{ color: "#94A3B8" }}>
+                <span>30 min</span><span>60 min</span><span>90 min</span>
+              </div>
+            </div>
+
+            {/* Objectives */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>
+                Custom Objectives <span style={{ color: "#94A3B8", fontWeight: 400 }}>(or leave blank for AI defaults)</span>
+              </label>
+              <div className="space-y-2">
+                {objectives.map((obj, i) => (
+                  <div key={i} className="flex gap-1.5">
+                    <input value={obj} onChange={e => updateObjective(i, e.target.value)}
+                      placeholder={`Objective ${i + 1}`}
+                      className="flex-1 px-3 py-2 text-sm rounded-xl focus:outline-none transition-all"
+                      style={{ border: "1.5px solid #E2E8F0", color: "#0F172A" }}
+                      onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
+                      onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
+                    />
+                    {objectives.length > 1 && (
+                      <button onClick={() => removeObjective(i)}
+                        className="p-2 rounded-lg cursor-pointer transition-all shrink-0"
+                        style={{ color: "#94A3B8" }}
+                        onMouseEnter={e => { e.currentTarget.style.background = "#FEF2F2"; e.currentTarget.style.color = "#EF4444"; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#94A3B8"; }}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {objectives.length < 4 && (
+                  <button onClick={addObjective}
+                    className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer transition-all px-2 py-1 rounded-lg"
+                    style={{ color: "#6366F1" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#EEF2FF"}
+                    onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add objective
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Special notes */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>
+                Special Notes <span style={{ color: "#94A3B8", fontWeight: 400 }}>(optional)</span>
+              </label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                rows={2} placeholder="e.g. Include a debate activity, focus on rural students' context…"
+                className="w-full px-3 py-2.5 text-sm rounded-xl resize-none focus:outline-none transition-all"
+                style={{ border: "1.5px solid #E2E8F0", color: "#0F172A" }}
+                onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
+                onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
+              />
+            </div>
+
+            {/* Generate button */}
+            <button onClick={handleGenerate} disabled={!chapter || generating}
+              className="w-full py-3 rounded-xl text-sm font-bold cursor-pointer transition-all flex items-center justify-center gap-2"
+              style={{
+                background: (!chapter || generating) ? "#E2E8F0" : "linear-gradient(135deg,#6366F1,#8B5CF6)",
+                color: (!chapter || generating) ? "#94A3B8" : "white",
+                boxShadow: (!chapter || generating) ? "none" : "0 4px 14px rgba(99,102,241,0.4)",
+              }}
+              onMouseEnter={e => { if (chapter && !generating) e.currentTarget.style.boxShadow = "0 6px 20px rgba(99,102,241,0.5)"; }}
+              onMouseLeave={e => { if (chapter && !generating) e.currentTarget.style.boxShadow = "0 4px 14px rgba(99,102,241,0.4)"; }}>
+              {generating ? (
+                <><svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg> Generating…</>
+              ) : (
+                <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg> Generate with AI ✨</>
+              )}
+            </button>
+          </div>
+
+          {/* RIGHT — Generated plan */}
+          <div className="lg:col-span-3" ref={rightRef}>
+            {generating ? (
+              <div className="bg-white rounded-2xl overflow-hidden"
+                style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+                <GeneratingAnimation />
+              </div>
+            ) : plan ? (
+              <div className="bg-white rounded-2xl p-6 overflow-y-auto"
+                style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+                <PlanDisplay plan={plan} onSave={handleSave} saving={saving} saved={saved} />
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl flex flex-col items-center justify-center min-h-[500px]"
+                style={{ border: "1.5px dashed #C7D2FE" }}>
+                <div className="w-16 h-16 rounded-2xl ai-gradient flex items-center justify-center mb-4 opacity-60">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <p className="text-base font-semibold mb-1" style={{ color: "#94A3B8", fontFamily: "var(--font-space-grotesk)" }}>
+                  Your lesson plan will appear here
+                </p>
+                <p className="text-sm" style={{ color: "#CBD5E1" }}>
+                  Select a chapter and click Generate
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

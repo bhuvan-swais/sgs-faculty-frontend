@@ -167,7 +167,7 @@ export default function LoginForm() {
             Email: <span className="font-mono" style={{ color: "#4F46E5" }}>sandipani.acharya@swais.edu</span>
           </p>
           <p className="text-xs" style={{ color: "#64748B" }}>
-            Password: <span className="font-mono" style={{ color: "#4F46E5" }}>password123</span>
+            Password: <span className="font-mono" style={{ color: "#4F46E5" }}>swais@123</span>
           </p>
         </div>
       </div>

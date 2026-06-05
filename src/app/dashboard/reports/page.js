@@ -1,7 +1,39 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { FALLBACK_REPORT } from "@/lib/staticData";
 
+const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+/* ── helpers ─────────────────────────────────────── */
+function getGrade(pct) {
+  if (pct == null) return "—";
+  if (pct >= 90) return "A+";
+  if (pct >= 75) return "A";
+  if (pct >= 60) return "B";
+  if (pct >= 45) return "C";
+  return "D";
+}
+
+const GRADE_COLOR = {
+  "A+": { color: "#10B981", bg: "#ECFDF5" },
+  "A":  { color: "#10B981", bg: "#ECFDF5" },
+  "B":  { color: "#6366F1", bg: "#EEF2FF" },
+  "C":  { color: "#F59E0B", bg: "#FFFBEB" },
+  "D":  { color: "#EF4444", bg: "#FEF2F2" },
+  "—":  { color: "#94A3B8", bg: "#F8FAFC" },
+};
+
+function gradeColor(pct) {
+  if (pct == null) return "#94A3B8";
+  if (pct >= 90) return "#10B981";
+  if (pct >= 75) return "#06B6D4";
+  if (pct >= 60) return "#6366F1";
+  if (pct >= 45) return "#F59E0B";
+  return "#EF4444";
+}
+
+/* ── PercentBar ──────────────────────────────────── */
 function PercentBar({ value }) {
   const pct = value ?? 0;
   const gradient =
@@ -12,41 +44,175 @@ function PercentBar({ value }) {
   return (
     <div className="flex items-center gap-2">
       <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "#EEF2FF" }}>
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: gradient }} />
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: gradient }} />
       </div>
       <span className="text-xs font-semibold w-10 text-right" style={{ color: "#475569" }}>
-        {value !== null ? `${value}%` : "—"}
+        {value != null ? `${value}%` : "—"}
       </span>
     </div>
   );
 }
 
+/* ── Donut chart (pure CSS/SVG) ──────────────────── */
+function DonutChart({ pct, color, size = 120 }) {
+  const r   = 46;
+  const circ = 2 * Math.PI * r;
+  const fill = ((pct ?? 0) / 100) * circ;
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r={r} fill="none" stroke="#EEF2FF" strokeWidth="10" />
+      <circle cx="50" cy="50" r={r} fill="none"
+        stroke={color} strokeWidth="10"
+        strokeDasharray={`${fill} ${circ - fill}`}
+        strokeLinecap="round"
+        strokeDashoffset={circ / 4}
+        style={{ transition: "stroke-dasharray 0.8s ease" }} />
+      <text x="50" y="46" textAnchor="middle" fontSize="16" fontWeight="700" fill="#0F172A">{pct ?? 0}%</text>
+      <text x="50" y="60" textAnchor="middle" fontSize="8" fill="#94A3B8">avg score</text>
+    </svg>
+  );
+}
+
+/* ── StudentSpotlight ────────────────────────────── */
+function StudentSpotlight({ student, totalAssessments, onBack }) {
+  const pct   = student.average_percent ?? 0;
+  const grade = getGrade(pct);
+  const gc    = GRADE_COLOR[grade] || GRADE_COLOR["—"];
+  const color = gradeColor(pct);
+  const initials = student.name.split(" ").map(w => w[0]).slice(0, 2).join("");
+
+  const stats = [
+    { label: "Class Rank",    value: `#${student.rank}`,                            sub: `of ${totalAssessments > 0 ? "class" : "—"}` },
+    { label: "Average Score", value: pct ? `${pct}%` : "—",                         sub: "overall" },
+    { label: "Highest Marks", value: student.highest_marks ?? "—",                  sub: "best score" },
+    { label: "Assessments",   value: `${student.total_assessed}/${totalAssessments}`, sub: "attempted" },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl p-6 space-y-5"
+      style={{ border: "1px solid rgba(99,102,241,0.12)", boxShadow: "0 4px 20px rgba(99,102,241,0.08)" }}>
+
+      {/* Back + title */}
+      <div className="flex items-center justify-between">
+        <button onClick={onBack}
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+          style={{ color: "#6366F1", background: "#EEF2FF" }}
+          onMouseEnter={e => e.currentTarget.style.background = "#C7D2FE"}
+          onMouseLeave={e => e.currentTarget.style.background = "#EEF2FF"}>
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Class Overview
+        </button>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+          style={{ background: "#F8FAFC", color: "#94A3B8" }}>Student Spotlight</span>
+      </div>
+
+      {/* Profile + donut */}
+      <div className="flex items-center gap-5">
+        <DonutChart pct={pct} color={color} size={110} />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0"
+              style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>{initials}</div>
+            <div>
+              <p className="font-bold text-sm leading-tight" style={{ color: "#0F172A" }}>{student.name}</p>
+              <p className="font-mono text-xs" style={{ color: "#94A3B8" }}>{student.roll_number}</p>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-2">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
+              style={{ background: gc.bg, color: gc.color }}>Grade {grade}</span>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
+              style={{ background: "#EEF2FF", color: "#6366F1" }}>Rank #{student.rank}</span>
+          </div>
+          <div className="mt-3">
+            <PercentBar value={pct} />
+          </div>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {stats.map(s => (
+          <div key={s.label} className="rounded-xl p-3 text-center"
+            style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: "#94A3B8" }}>{s.label}</p>
+            <p className="text-lg font-bold" style={{ color: "#0F172A" }}>{s.value}</p>
+            <p className="text-[10px]" style={{ color: "#CBD5E1" }}>{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Grade band strip */}
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#94A3B8" }}>Grade Bands</p>
+        <div className="flex rounded-lg overflow-hidden text-center text-[10px] font-bold">
+          {[
+            { label: "A+ ≥90%", color: "#10B981", active: pct >= 90 },
+            { label: "A ≥75%",  color: "#06B6D4", active: pct >= 75 && pct < 90 },
+            { label: "B ≥60%",  color: "#6366F1", active: pct >= 60 && pct < 75 },
+            { label: "C ≥45%",  color: "#F59E0B", active: pct >= 45 && pct < 60 },
+            { label: "D <45%",  color: "#EF4444", active: pct < 45 },
+          ].map(b => (
+            <div key={b.label} className="flex-1 py-1.5"
+              style={{
+                background: b.active ? b.color : `${b.color}22`,
+                color: b.active ? "white" : b.color,
+                transition: "all 0.3s",
+              }}>
+              {b.label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Podium config ───────────────────────────────── */
 const PODIUM_CONFIG = [
   { medal: "🥇", ring: "2px solid #F59E0B", bg: "linear-gradient(135deg,#FFFBEB,#FEF3C7)", textColor: "#D97706", size: "w-12 h-12", text: "text-xl" },
   { medal: "🥈", ring: "2px solid #9CA3AF", bg: "linear-gradient(135deg,#F9FAFB,#F3F4F6)", textColor: "#6B7280", size: "w-10 h-10", text: "text-base" },
-  { medal: "🥉", ring: "2px solid #F97316", bg: "linear-gradient(135deg,#FFF7ED,#FFEDD5)", textColor: "#EA580C", size: "w-9 h-9", text: "text-sm"  },
+  { medal: "🥉", ring: "2px solid #F97316", bg: "linear-gradient(135deg,#FFF7ED,#FFEDD5)", textColor: "#EA580C", size: "w-9 h-9",  text: "text-sm"  },
 ];
 
+/* ── Main page ───────────────────────────────────── */
 export default function ReportsPage() {
-  const [report, setReport]       = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [search, setSearch]       = useState("");
-  const [sortBy, setSortBy]       = useState("rank");
+  const [report,          setReport]          = useState(null);
+  const [isLoading,       setIsLoading]       = useState(true);
+  const [search,          setSearch]          = useState("");
+  const [sortBy,          setSortBy]          = useState("rank");
+  const [selectedStudent, setSelectedStudent] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
-    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/reports`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then(setReport)
+    if (!token) {
+      setReport(FALLBACK_REPORT);
+      setIsLoading(false);
+      return;
+    }
+    fetch(`${API}/api/v1/reports`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.detail || `Error ${r.status}`);
+        }
+        return r.json();
+      })
+      .then(d => setReport(d))
+      .catch(() => {
+        // API unavailable — fall back to static demo data
+        setReport(FALLBACK_REPORT);
+      })
       .finally(() => setIsLoading(false));
   }, []);
 
   const students = report?.students || [];
+  const totalAssessments = report?.total_assessments || 0;
 
   const filtered = students
-    .filter((s) =>
+    .filter(s =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
       s.roll_number.toLowerCase().includes(search.toLowerCase())
     )
@@ -56,7 +222,11 @@ export default function ReportsPage() {
       return (b.average_percent ?? 0) - (a.average_percent ?? 0);
     });
 
-  const top3 = [...students].slice(0, 3);
+  const top3 = [...students].sort((a, b) => a.rank - b.rank).slice(0, 3);
+
+  const handleSelect = (s) => {
+    setSelectedStudent(prev => prev?.student_id === s.student_id ? null : s);
+  };
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-fade-in">
@@ -75,6 +245,7 @@ export default function ReportsPage() {
           Class {report?.class_name || "8"} — Section {report?.section || "A"} &nbsp;·&nbsp;
           <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_assessments || 0}</span> assessments ·{" "}
           <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_students || 0}</span> students
+          &nbsp;·&nbsp; <span className="text-xs">Click a student to see their spotlight</span>
         </p>
       </div>
 
@@ -85,35 +256,46 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
-          {/* ── Top 3 Podium ─────────────────────────────────── */}
-          {top3.length >= 1 && (
-            <div className="grid grid-cols-3 gap-4">
-              {[1, 0, 2].map((origIdx, podiumPos) => {
-                const s = top3[origIdx];
-                if (!s) return <div key={podiumPos} />;
-                const cfg = PODIUM_CONFIG[origIdx];
-                return (
-                  <div key={s.student_id}
-                    className="flex flex-col items-center text-center p-5 rounded-2xl transition-all"
-                    style={{ background: cfg.bg, border: cfg.ring, boxShadow: origIdx === 0 ? "0 8px 24px rgba(245,158,11,0.2)" : "none" }}>
-                    <span className={cfg.text + " mb-2"}>{cfg.medal}</span>
-                    <div className={`${cfg.size} rounded-full flex items-center justify-center font-bold text-white mb-2 shrink-0`}
-                      style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
-                      {s.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
-                    </div>
-                    <p className="text-xs font-bold leading-tight mb-0.5" style={{ color: "#0F172A" }}>{s.name}</p>
-                    <p className="text-[10px] font-mono mb-1.5" style={{ color: "#94A3B8" }}>{s.roll_number}</p>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
-                      style={{ background: "white", color: cfg.textColor, border: `1px solid ${cfg.textColor}40` }}>
-                      {s.average_percent}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+          {/* ── Spotlight OR Podium ─────────────────────── */}
+          {selectedStudent ? (
+            <StudentSpotlight
+              student={selectedStudent}
+              totalAssessments={totalAssessments}
+              onBack={() => setSelectedStudent(null)}
+            />
+          ) : (
+            top3.length >= 1 && (
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 0, 2].map((origIdx, podiumPos) => {
+                  const s = top3[origIdx];
+                  if (!s) return <div key={podiumPos} />;
+                  const cfg = PODIUM_CONFIG[origIdx];
+                  return (
+                    <button key={s.student_id}
+                      onClick={() => handleSelect(s)}
+                      className="flex flex-col items-center text-center p-5 rounded-2xl transition-all cursor-pointer"
+                      style={{ background: cfg.bg, border: cfg.ring, boxShadow: origIdx === 0 ? "0 8px 24px rgba(245,158,11,0.2)" : "none" }}
+                      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 12px 30px rgba(99,102,241,0.15)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = origIdx === 0 ? "0 8px 24px rgba(245,158,11,0.2)" : "none"; }}>
+                      <span className={cfg.text + " mb-2"}>{cfg.medal}</span>
+                      <div className={`${cfg.size} rounded-full flex items-center justify-center font-bold text-white mb-2 shrink-0`}
+                        style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
+                        {s.name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                      </div>
+                      <p className="text-xs font-bold leading-tight mb-0.5" style={{ color: "#0F172A" }}>{s.name}</p>
+                      <p className="text-[10px] font-mono mb-1.5" style={{ color: "#94A3B8" }}>{s.roll_number}</p>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
+                        style={{ background: "white", color: cfg.textColor, border: `1px solid ${cfg.textColor}40` }}>
+                        {s.average_percent}%
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )
           )}
 
-          {/* ── Controls ─────────────────────────────────────── */}
+          {/* ── Controls ───────────────────────────────── */}
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#94A3B8" }}
@@ -122,41 +304,39 @@ export default function ReportsPage() {
               </svg>
               <input
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={e => setSearch(e.target.value)}
                 placeholder="Search student by name or roll…"
                 className="w-full pl-9 pr-4 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
                 style={{ border: "1.5px solid #E2E8F0", background: "white", color: "#0F172A" }}
                 onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
-                onBlur={e => { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
+                onBlur={e  => { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
               />
             </div>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)}
               className="px-4 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
               style={{ border: "1.5px solid #E2E8F0", background: "white", color: "#0F172A" }}
-              onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; }}
-              onBlur={e => { e.target.style.border = "1.5px solid #E2E8F0"; }}
-            >
+              onFocus={e => e.target.style.border = "1.5px solid #6366F1"}
+              onBlur={e  => e.target.style.border = "1.5px solid #E2E8F0"}>
               <option value="rank">Sort by Rank</option>
               <option value="avg">Sort by Average</option>
               <option value="name">Sort by Name</option>
             </select>
           </div>
 
-          {/* ── Full Table ───────────────────────────────────── */}
-          <div className="bg-white rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+          {/* ── Full Table ──────────────────────────────── */}
+          <div className="bg-white rounded-2xl overflow-hidden"
+            style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: "linear-gradient(135deg,#EEF2FF,#F5F3FF)", borderBottom: "1px solid rgba(99,102,241,0.1)" }}>
                     {[
-                      { label: "Rank", cls: "text-center w-12" },
-                      { label: "Student", cls: "text-left" },
-                      { label: "Assessed", cls: "text-center" },
-                      { label: "Avg Marks", cls: "text-right" },
-                      { label: "High", cls: "text-right w-12" },
-                      { label: "Low", cls: "text-right w-12" },
+                      { label: "Rank",        cls: "text-center w-12" },
+                      { label: "Student",     cls: "text-left" },
+                      { label: "Assessed",    cls: "text-center" },
+                      { label: "Avg Marks",   cls: "text-right" },
+                      { label: "High",        cls: "text-right w-12" },
+                      { label: "Low",         cls: "text-right w-12" },
                       { label: "Performance", cls: "w-40" },
                     ].map(h => (
                       <th key={h.label} className={`px-4 py-3.5 text-[10px] font-bold uppercase tracking-widest ${h.cls}`}
@@ -165,13 +345,20 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((s) => {
-                    const isTop3 = s.rank <= 3;
+                  {filtered.map(s => {
+                    const isTop3    = s.rank <= 3;
+                    const isActive  = selectedStudent?.student_id === s.student_id;
                     return (
                       <tr key={s.student_id}
-                        style={{ borderBottom: "1px solid #F1F5F9" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "#EEF2FF40"}
-                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                        onClick={() => handleSelect(s)}
+                        className="cursor-pointer transition-colors"
+                        style={{
+                          borderBottom: "1px solid #F1F5F9",
+                          borderLeft: isActive ? "3px solid #6366F1" : "3px solid transparent",
+                          background: isActive ? "#EEF2FF40" : "transparent",
+                        }}
+                        onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#EEF2FF30"; }}
+                        onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
 
                         {/* Rank */}
                         <td className="px-4 py-3 text-center">
@@ -188,7 +375,7 @@ export default function ReportsPage() {
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                               style={{ background: isTop3 ? "linear-gradient(135deg,#F59E0B,#EF4444)" : "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
-                              {s.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                              {s.name.split(" ").map(w => w[0]).slice(0, 2).join("")}
                             </div>
                             <div>
                               <p className="font-semibold" style={{ color: "#0F172A" }}>{s.name}</p>
@@ -199,7 +386,7 @@ export default function ReportsPage() {
 
                         <td className="px-4 py-3 text-center text-xs" style={{ color: "#94A3B8" }}>{s.total_assessed}</td>
                         <td className="px-4 py-3 text-right font-semibold" style={{ color: "#0F172A" }}>
-                          {s.average_marks !== null ? s.average_marks : "—"}
+                          {s.average_marks != null ? s.average_marks : "—"}
                         </td>
                         <td className="px-4 py-3 text-right text-xs font-semibold" style={{ color: "#10B981" }}>
                           {s.highest_marks ?? "—"}

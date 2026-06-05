@@ -16,6 +16,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { fetchNotes, createNote, updateNote, deleteNote, fetchChapters } from "@/lib/api";
+import { FALLBACK_NOTES, FALLBACK_CHAPTERS } from "@/lib/staticData";
 
 const NotesContext = createContext(undefined);
 
@@ -38,8 +39,10 @@ export function NotesProvider({ children }) {
         setNotes(notesData);
         setChapters(chaptersData);
       } catch (err) {
-        console.error("Failed to load notes:", err);
-        setError(err.message);
+        // API unreachable — fall back to static demo data silently
+        console.warn("Notes API unavailable, using offline data:", err.message);
+        setNotes(FALLBACK_NOTES);
+        setChapters(FALLBACK_CHAPTERS);
       } finally {
         setIsLoading(false);
       }

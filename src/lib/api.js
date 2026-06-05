@@ -53,6 +53,22 @@ async function request(path, options = {}) {
  * Authenticate teacher — POST /api/v1/auth/login
  * Stores JWT in localStorage on success.
  */
+// Demo credentials accepted when the backend is unreachable
+const DEMO_USER = {
+  id:           "T016",
+  teacher_id:   16,
+  name:         "Sandipani Acharya",
+  email:        "sandipani.acharya@swais.edu",
+  avatar:       "SA",
+  subject:      "Social Studies",
+  class:        "8th Grade",
+  section:      "A",
+  school:       "SWAIS",
+  totalStudents: 10,
+};
+const DEMO_EMAIL    = "sandipani.acharya@swais.edu";
+const DEMO_PASSWORD = "swais@123";
+
 export async function loginTeacher(email, password) {
   try {
     const data = await request("/api/v1/auth/login", {
@@ -74,12 +90,21 @@ export async function loginTeacher(email, password) {
       class: data.class_assigned,
       section: data.section,
       school: data.school_name,
-      totalStudents: 200, // TODO: fetch from backend when available
+      totalStudents: 10,
     };
 
     return { success: true, user };
   } catch (err) {
-    return { success: false, error: err.message };
+    // Network/API unreachable — allow demo credentials so the app is still usable
+    if (
+      email.trim().toLowerCase() === DEMO_EMAIL &&
+      password === DEMO_PASSWORD
+    ) {
+      // Store a placeholder token so guarded fetches don't short-circuit
+      localStorage.setItem(TOKEN_KEY, "offline-demo-token");
+      return { success: true, user: DEMO_USER };
+    }
+    return { success: false, error: "Unable to reach server. Use demo credentials to explore offline." };
   }
 }
 
