@@ -32,6 +32,13 @@ async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
 
   if (!res.ok) {
+    // 401 on a protected endpoint means token is invalid/expired — clear session and send to login
+    // Skip this for the login endpoint itself (it legitimately returns 401 for bad credentials)
+    if (res.status === 401 && !path.includes("/auth/login")) {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem("swais_faculty_auth");
+      if (typeof window !== "undefined") window.location.href = "/";
+    }
     let detail = `HTTP ${res.status}`;
     try {
       const body = await res.json();
@@ -39,7 +46,9 @@ async function request(path, options = {}) {
     } catch {
       /* ignore */
     }
-    throw new Error(detail);
+    const err = new Error(detail);
+    err.status = res.status;   // mark as an HTTP error so callers can distinguish from network errors
+    throw err;
   }
 
   // 204 No Content — no body
@@ -95,12 +104,16 @@ export async function loginTeacher(email, password) {
 
     return { success: true, user };
   } catch (err) {
-    // Network/API unreachable — allow demo credentials so the app is still usable
+    // If the server responded with an HTTP error (e.g. 401 wrong password),
+    // show the real error — do NOT fall back to offline mode.
+    if (err.status) {
+      return { success: false, error: err.message || "Invalid email or password." };
+    }
+    // Network/API genuinely unreachable — allow demo credentials offline
     if (
       email.trim().toLowerCase() === DEMO_EMAIL &&
       password === DEMO_PASSWORD
     ) {
-      // Store a placeholder token so guarded fetches don't short-circuit
       localStorage.setItem(TOKEN_KEY, "offline-demo-token");
       return { success: true, user: DEMO_USER };
     }
