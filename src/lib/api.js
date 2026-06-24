@@ -37,7 +37,7 @@ async function request(path, options = {}) {
     if (res.status === 401 && !path.includes("/auth/login")) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem("swais_faculty_auth");
-      if (typeof window !== "undefined") window.location.href = "/";
+      if (typeof window !== "undefined") window.location.href = "https://staging.sgs.swais.in";
     }
     let detail = `HTTP ${res.status}`;
     try {
@@ -118,6 +118,30 @@ export async function loginTeacher(email, password) {
       return { success: true, user: DEMO_USER };
     }
     return { success: false, error: "Unable to reach server. Use demo credentials to explore offline." };
+  }
+}
+
+/**
+ * Fetch current user profile from token — GET /api/v1/auth/me
+ * Called on app load when a JWT exists but no user profile is cached.
+ */
+export async function fetchMe() {
+  try {
+    const data = await request("/api/v1/auth/me");
+    return {
+      id: `T${String(data.teacher_id).padStart(3, "0")}`,
+      teacher_id: data.teacher_id,
+      name: data.name,
+      email: data.email,
+      avatar: data.avatar_initials || data.name.slice(0, 2).toUpperCase(),
+      subject: data.subject,
+      class: data.class_assigned,
+      section: data.section,
+      school: data.school_name,
+      totalStudents: data.total_students || 10,
+    };
+  } catch {
+    return null;
   }
 }
 

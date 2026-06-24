@@ -24,19 +24,46 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Restore session from localStorage on mount
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setUser(parsed);
+    async function restoreSession() {
+      try {
+        // 1. Check URL for ?token= param (staging.sgs.swais.in redirects here with token)
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get("token");
+        if (urlToken) {
+          localStorage.setItem("swais_faculty_token", urlToken);
+          // Clean token from URL without triggering a navigation
+          const clean = window.location.pathname;
+          window.history.replaceState({}, "", clean);
+        }
+
+        // 2. Check localStorage for an existing token or user profile
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setUser(JSON.parse(stored));
+          return;
+        }
+
+        // 3. If a raw JWT exists (set by staging via URL param above or a prior session)
+        //    call /api/v1/auth/me to get the user profile
+        const token = localStorage.getItem("swais_faculty_token");
+        if (token) {
+          const { fetchMe } = await import("@/lib/api");
+          const profile = await fetchMe();
+          if (profile) {
+            setUser(profile);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+          }
+        }
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem("swais_faculty_token");
+      } finally {
+        setIsLoading(false);
       }
-    } catch {
-      localStorage.removeItem(STORAGE_KEY);
-    } finally {
-      setIsLoading(false);
     }
+
+    restoreSession();
   }, []);
 
   /**

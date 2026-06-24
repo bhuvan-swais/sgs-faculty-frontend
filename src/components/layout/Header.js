@@ -7,7 +7,10 @@ export default function Header({ onMenuToggle }) {
   const { user, logout } = useAuth();
   const router = useRouter();
 
-  const handleLogout = () => { logout(); router.push("/"); };
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "https://staging.sgs.swais.in";
+  };
 
   return (
     <header

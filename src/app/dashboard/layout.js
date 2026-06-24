@@ -21,7 +21,7 @@ function DashboardShell({ children }) {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/");
+      window.location.href = "https://staging.sgs.swais.in";
     }
   }, [isAuthenticated, isLoading, router]);
 
