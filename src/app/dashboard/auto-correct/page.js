@@ -1,0 +1,336 @@
+"use client";
+
+import { useState } from "react";
+import { FALLBACK_STUDENTS } from "@/lib/staticData";
+
+const DUMMY_QUESTIONS = [
+  { id: 1, question: "What is the full form of the Indian Constitution?", maxMarks: 2, type: "short" },
+  { id: 2, question: "In which year was the Indian Constitution adopted?", maxMarks: 1, type: "mcq", options: ["1947", "1949", "1950", "1952"], answer: "1949" },
+  { id: 3, question: "Name the three organs of the Indian Government.", maxMarks: 3, type: "short" },
+  { id: 4, question: "What is secularism? Explain with an example.", maxMarks: 5, type: "long" },
+];
+
+const GRADE_STYLE = {
+  "A+": { color: "#10B981", bg: "#ECFDF5" },
+  "A":  { color: "#10B981", bg: "#ECFDF5" },
+  "B":  { color: "#6366F1", bg: "#EEF2FF" },
+  "C":  { color: "#F59E0B", bg: "#FFFBEB" },
+  "D":  { color: "#EF4444", bg: "#FEF2F2" },
+};
+
+function getGrade(pct) {
+  if (pct >= 90) return "A+";
+  if (pct >= 75) return "A";
+  if (pct >= 60) return "B";
+  if (pct >= 45) return "C";
+  return "D";
+}
+
+export default function AutoCorrectPage() {
+  const [step,          setStep]          = useState(1); // 1=setup, 2=answers, 3=results
+  const [selectedTopic, setSelectedTopic] = useState("Chapter 1 - The Indian Constitution");
+  const [answers,       setAnswers]       = useState({});
+  const [studentMode,   setStudentMode]   = useState("class");
+  const [selectedStudent, setSelectedStudent] = useState("");
+  const [isProcessing,  setIsProcessing]  = useState(false);
+  const [results,       setResults]       = useState(null);
+
+  const totalMarks = DUMMY_QUESTIONS.reduce((s, q) => s + q.maxMarks, 0);
+
+  const handleAnswerChange = (qId, val) => {
+    setAnswers(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const handleCorrect = async () => {
+    setIsProcessing(true);
+    try {
+      // TODO: Replace with AI Engineer's correction endpoint
+      // POST /api/v1/ai/correct-answers
+      // Body: { topic: selectedTopic, questions: DUMMY_QUESTIONS, answers, student_id (optional) }
+      // Response: { results: [{ question_id, marks_awarded, feedback, is_correct }], total, percentage }
+      await new Promise(r => setTimeout(r, 2000));
+
+      const corrected = DUMMY_QUESTIONS.map(q => {
+        const awarded = Math.round(q.maxMarks * (0.5 + Math.random() * 0.5));
+        return {
+          question_id: q.id,
+          question: q.question,
+          answer: answers[q.id] || "(no answer)",
+          marks_awarded: awarded,
+          max_marks: q.maxMarks,
+          feedback: "AI feedback will appear here once the AI Engineer's endpoint is connected.",
+          is_correct: awarded === q.maxMarks,
+        };
+      });
+
+      const total = corrected.reduce((s, r) => s + r.marks_awarded, 0);
+      setResults({ items: corrected, total, max: totalMarks, percentage: Math.round((total / totalMarks) * 100) });
+      setStep(3);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReset = () => {
+    setStep(1);
+    setAnswers({});
+    setResults(null);
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
+          style={{ background: "linear-gradient(135deg,#10B981,#06B6D4)" }}>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+            Automatic Correction
+          </h1>
+          <p className="text-sm" style={{ color: "#94A3B8" }}>AI-powered answer evaluation and grading</p>
+        </div>
+        <span className="ml-auto text-xs font-semibold px-3 py-1 rounded-full"
+          style={{ background: "#FFF7ED", color: "#EA580C", border: "1px solid #FED7AA" }}>
+          AI Endpoint Pending
+        </span>
+      </div>
+
+      {/* Step indicator */}
+      <div className="flex items-center gap-2">
+        {["Setup", "Enter Answers", "Results"].map((s, i) => {
+          const n = i + 1;
+          const isDone    = step > n;
+          const isActive  = step === n;
+          return (
+            <div key={s} className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                  style={{
+                    background: isDone ? "#10B981" : isActive ? "#6366F1" : "#E2E8F0",
+                    color: isDone || isActive ? "white" : "#94A3B8",
+                  }}>
+                  {isDone ? "✓" : n}
+                </div>
+                <span className="text-xs font-semibold" style={{ color: isActive ? "#6366F1" : "#94A3B8" }}>{s}</span>
+              </div>
+              {i < 2 && <div className="flex-1 h-px w-8" style={{ background: step > n ? "#10B981" : "#E2E8F0" }} />}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Step 1: Setup */}
+      {step === 1 && (
+        <div className="bg-white rounded-2xl p-6 space-y-5" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+          <h2 className="text-base font-bold" style={{ color: "#0F172A" }}>Setup Correction</h2>
+
+          <div>
+            <label className="text-xs font-semibold block mb-2" style={{ color: "#64748B" }}>Topic / Chapter</label>
+            <select value={selectedTopic} onChange={e => setSelectedTopic(e.target.value)}
+              className="w-full text-sm rounded-xl px-3 py-2.5 outline-none"
+              style={{ border: "1px solid #E2E8F0", color: "#0F172A", background: "#F8FAFC" }}>
+              <option>Chapter 1 - The Indian Constitution</option>
+              <option>Chapter 2 - Understanding Secularism</option>
+              <option>Chapter 3 - Why Do We Need a Parliament?</option>
+              <option>Chapter 4 - Understanding Laws</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold block mb-2" style={{ color: "#64748B" }}>Correct for</label>
+            <div className="flex gap-3">
+              {[
+                { value: "class",   label: "Entire Class",   icon: "👥" },
+                { value: "student", label: "Single Student", icon: "👤" },
+              ].map(opt => (
+                <button key={opt.value} onClick={() => setStudentMode(opt.value)}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+                  style={{
+                    background: studentMode === opt.value ? "#EEF2FF" : "#F8FAFC",
+                    border: `1px solid ${studentMode === opt.value ? "#6366F1" : "#E2E8F0"}`,
+                    color: studentMode === opt.value ? "#6366F1" : "#64748B",
+                  }}>
+                  {opt.icon} {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {studentMode === "student" && (
+            <div>
+              <label className="text-xs font-semibold block mb-2" style={{ color: "#64748B" }}>Select Student</label>
+              <select value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}
+                className="w-full text-sm rounded-xl px-3 py-2.5 outline-none"
+                style={{ border: "1px solid #E2E8F0", color: "#0F172A", background: "#F8FAFC" }}>
+                <option value="">-- Select student --</option>
+                {FALLBACK_STUDENTS.map(s => (
+                  <option key={s.student_id} value={s.student_id}>{s.roll_no}. {s.full_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="p-4 rounded-xl" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+            <p className="text-xs font-semibold mb-2" style={{ color: "#64748B" }}>
+              Questions for: <span style={{ color: "#6366F1" }}>{selectedTopic}</span>
+            </p>
+            <p className="text-xs" style={{ color: "#94A3B8" }}>
+              {DUMMY_QUESTIONS.length} questions · {totalMarks} total marks
+            </p>
+          </div>
+
+          <button onClick={() => setStep(2)}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all"
+            style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
+            Start Entering Answers →
+          </button>
+        </div>
+      )}
+
+      {/* Step 2: Enter Answers */}
+      {step === 2 && (
+        <div className="space-y-4">
+          {DUMMY_QUESTIONS.map((q, idx) => (
+            <div key={q.id} className="bg-white rounded-2xl p-5"
+              style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex items-start gap-2.5">
+                  <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 mt-0.5"
+                    style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
+                    {idx + 1}
+                  </span>
+                  <p className="text-sm font-semibold" style={{ color: "#0F172A" }}>{q.question}</p>
+                </div>
+                <span className="text-xs font-bold shrink-0 px-2 py-0.5 rounded-full"
+                  style={{ background: "#EEF2FF", color: "#6366F1" }}>
+                  {q.maxMarks} {q.maxMarks === 1 ? "mark" : "marks"}
+                </span>
+              </div>
+
+              {q.type === "mcq" ? (
+                <div className="grid grid-cols-2 gap-2 pl-8">
+                  {q.options.map(opt => (
+                    <button key={opt} onClick={() => handleAnswerChange(q.id, opt)}
+                      className="py-2 px-3 rounded-xl text-sm transition-all cursor-pointer text-left"
+                      style={{
+                        background: answers[q.id] === opt ? "#EEF2FF" : "#F8FAFC",
+                        border: `1px solid ${answers[q.id] === opt ? "#6366F1" : "#E2E8F0"}`,
+                        color: answers[q.id] === opt ? "#6366F1" : "#475569",
+                        fontWeight: answers[q.id] === opt ? "600" : "400",
+                      }}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <textarea
+                  value={answers[q.id] || ""}
+                  onChange={e => handleAnswerChange(q.id, e.target.value)}
+                  placeholder="Type the student's answer here…"
+                  className="w-full ml-8 p-3 text-sm rounded-xl resize-none outline-none"
+                  style={{
+                    border: "1px solid #E2E8F0",
+                    color: "#0F172A",
+                    minHeight: q.type === "long" ? "100px" : "60px",
+                    width: "calc(100% - 2rem)",
+                  }}
+                />
+              )}
+            </div>
+          ))}
+
+          <div className="flex gap-3">
+            <button onClick={() => setStep(1)}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
+              style={{ background: "#F1F5F9", color: "#64748B", border: "1px solid #E2E8F0" }}>
+              ← Back
+            </button>
+            <button onClick={handleCorrect} disabled={isProcessing}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all disabled:opacity-60"
+              style={{ background: "linear-gradient(135deg,#10B981,#06B6D4)" }}>
+              {isProcessing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  AI Evaluating…
+                </span>
+              ) : "Submit for AI Correction →"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Results */}
+      {step === 3 && results && (
+        <div className="space-y-4">
+          {/* Score summary */}
+          <div className="bg-white rounded-2xl p-6 text-center"
+            style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-2xl font-bold"
+              style={{ background: `linear-gradient(135deg,${GRADE_STYLE[getGrade(results.percentage)]?.color || "#6366F1"},#8B5CF6)` }}>
+              {getGrade(results.percentage)}
+            </div>
+            <p className="text-3xl font-bold mb-1" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+              {results.total} / {results.max}
+            </p>
+            <p className="text-sm" style={{ color: "#94A3B8" }}>{results.percentage}% · {selectedTopic}</p>
+            <div className="mt-4 h-2 rounded-full overflow-hidden" style={{ background: "#EEF2FF" }}>
+              <div className="h-full rounded-full transition-all duration-700"
+                style={{ width: `${results.percentage}%`, background: "linear-gradient(90deg,#6366F1,#10B981)" }} />
+            </div>
+          </div>
+
+          {/* Per-question breakdown */}
+          {results.items.map((r, idx) => (
+            <div key={r.question_id} className="bg-white rounded-2xl p-5"
+              style={{ border: `1px solid ${r.is_correct ? "rgba(16,185,129,0.2)" : "rgba(99,102,241,0.1)"}` }}>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="flex items-start gap-2">
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs text-white shrink-0 mt-0.5 ${r.is_correct ? "" : ""}`}
+                    style={{ background: r.is_correct ? "#10B981" : "#F59E0B" }}>
+                    {r.is_correct ? "✓" : "~"}
+                  </span>
+                  <p className="text-sm font-semibold" style={{ color: "#0F172A" }}>Q{idx + 1}. {r.question}</p>
+                </div>
+                <span className="text-xs font-bold shrink-0 px-2 py-0.5 rounded-full"
+                  style={{ background: r.is_correct ? "#ECFDF5" : "#EEF2FF", color: r.is_correct ? "#10B981" : "#6366F1" }}>
+                  {r.marks_awarded}/{r.max_marks}
+                </span>
+              </div>
+              <div className="ml-7 space-y-1.5">
+                <p className="text-xs" style={{ color: "#64748B" }}>
+                  <span className="font-semibold">Answer:</span> {r.answer}
+                </p>
+                <p className="text-xs p-2.5 rounded-lg" style={{ background: "#F8FAFC", color: "#64748B", border: "1px solid #E2E8F0" }}>
+                  <span className="font-semibold" style={{ color: "#6366F1" }}>AI Feedback:</span> {r.feedback}
+                </p>
+              </div>
+            </div>
+          ))}
+
+          <button onClick={handleReset}
+            className="w-full py-3 rounded-xl text-sm font-semibold cursor-pointer transition-all"
+            style={{ background: "#EEF2FF", color: "#6366F1", border: "1px solid #C7D2FE" }}>
+            ← Start New Correction
+          </button>
+        </div>
+      )}
+
+      {/* Info */}
+      <div className="rounded-2xl p-4 flex items-start gap-3"
+        style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
+        <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#EA580C" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-xs" style={{ color: "#92400E" }}>
+          <strong>AI Integration Pending.</strong> Replace the placeholder in <code>handleCorrect()</code> with <code>POST /api/v1/ai/correct-answers</code> from the AI Engineer.
+        </p>
+      </div>
+    </div>
+  );
+}

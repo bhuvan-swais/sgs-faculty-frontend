@@ -300,11 +300,12 @@ function ResultDrawer({ assessment, onClose }) {
 
 /* ── Main Page ────────────────────────────────────────────────── */
 export default function AssessmentsPage() {
-  const [assessments, setAssessments] = useState([]);
-  const [isLoading,   setIsLoading]   = useState(true);
-  const [error,       setError]       = useState(null);
-  const [selected,    setSelected]    = useState(null);
-  const [typeFilter,  setTypeFilter]  = useState("all");
+  const [assessments,    setAssessments]    = useState([]);
+  const [isLoading,      setIsLoading]      = useState(true);
+  const [error,          setError]          = useState(null);
+  const [selected,       setSelected]       = useState(null);
+  const [typeFilter,     setTypeFilter]     = useState("all");
+  const [subjectFilter,  setSubjectFilter]  = useState("all");
 
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
@@ -342,10 +343,18 @@ export default function AssessmentsPage() {
     return c;
   }, [assessments]);
 
+  const subjects = useMemo(() => {
+    const s = [...new Set(assessments.map(a => a.subject).filter(Boolean))].sort();
+    return s;
+  }, [assessments]);
+
   const filtered = useMemo(() => {
-    if (typeFilter === "all") return assessments;
-    return assessments.filter(a => a.assessment_type === typeFilter);
-  }, [assessments, typeFilter]);
+    return assessments.filter(a => {
+      const typeMatch    = typeFilter    === "all" || a.assessment_type === typeFilter;
+      const subjectMatch = subjectFilter === "all" || a.subject === subjectFilter;
+      return typeMatch && subjectMatch;
+    });
+  }, [assessments, typeFilter, subjectFilter]);
 
   return (
     <>
@@ -396,32 +405,58 @@ export default function AssessmentsPage() {
           </div>
         )}
 
-        {/* ── Type Filter Chips ─────────────────────────────── */}
+        {/* ── Filters Row ───────────────────────────────────── */}
         {!isLoading && !error && assessments.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {[
-              { value: "all",        label: "All",         color: "#64748B", bg: "#F1F5F9" },
-              { value: "quiz",       label: "Quiz",        color: TYPE_CONFIG.quiz.color,       bg: TYPE_CONFIG.quiz.bg },
-              { value: "test",       label: "Test",        color: TYPE_CONFIG.test.color,       bg: TYPE_CONFIG.test.bg },
-              { value: "exam",       label: "Exam",        color: TYPE_CONFIG.exam.color,       bg: TYPE_CONFIG.exam.bg },
-              { value: "assignment", label: "Assignment",  color: TYPE_CONFIG.assignment.color, bg: TYPE_CONFIG.assignment.bg },
-            ].map(c => {
-              const isActive = typeFilter === c.value;
-              const count = typeCounts[c.value] || 0;
-              return (
-                <button key={c.value}
-                  onClick={() => setTypeFilter(c.value)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all"
-                  style={{
-                    background: isActive ? c.color : c.bg,
-                    color:      isActive ? "white" : c.color,
-                    border:     "1px solid",
-                    borderColor: isActive ? c.color : "transparent",
-                  }}>
-                  {c.label} <span style={{ opacity: 0.7 }}>· {count}</span>
-                </button>
-              );
-            })}
+          <div className="flex flex-col gap-3">
+            {/* Type filter chips */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: "all",        label: "All Types",   color: "#64748B", bg: "#F1F5F9" },
+                { value: "quiz",       label: "Quiz",        color: TYPE_CONFIG.quiz.color,       bg: TYPE_CONFIG.quiz.bg },
+                { value: "test",       label: "Test",        color: TYPE_CONFIG.test.color,       bg: TYPE_CONFIG.test.bg },
+                { value: "exam",       label: "Exam",        color: TYPE_CONFIG.exam.color,       bg: TYPE_CONFIG.exam.bg },
+                { value: "assignment", label: "Assignment",  color: TYPE_CONFIG.assignment.color, bg: TYPE_CONFIG.assignment.bg },
+              ].map(c => {
+                const isActive = typeFilter === c.value;
+                const count = typeCounts[c.value] || 0;
+                return (
+                  <button key={c.value}
+                    onClick={() => setTypeFilter(c.value)}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all"
+                    style={{
+                      background: isActive ? c.color : c.bg,
+                      color:      isActive ? "white" : c.color,
+                      border:     "1px solid",
+                      borderColor: isActive ? c.color : "transparent",
+                    }}>
+                    {c.label} <span style={{ opacity: 0.7 }}>· {count}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Subject filter — shown only when multiple subjects exist */}
+            {subjects.length > 1 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-semibold" style={{ color: "#64748B" }}>Subject:</span>
+                {["all", ...subjects].map(s => {
+                  const isActive = subjectFilter === s;
+                  return (
+                    <button key={s}
+                      onClick={() => setSubjectFilter(s)}
+                      className="px-3 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all"
+                      style={{
+                        background: isActive ? "#6366F1" : "#EEF2FF",
+                        color:      isActive ? "white"   : "#6366F1",
+                        border:     "1px solid",
+                        borderColor: isActive ? "#6366F1" : "transparent",
+                      }}>
+                      {s === "all" ? "All Subjects" : s}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -479,9 +514,17 @@ export default function AssessmentsPage() {
                   <h3 className="text-sm font-bold leading-snug mb-1" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
                     {a.title}
                   </h3>
-                  {a.chapter && (
-                    <p className="text-xs mb-3 truncate" style={{ color: "#94A3B8" }}>{a.chapter}</p>
-                  )}
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    {a.subject && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: "#EEF2FF", color: "#6366F1" }}>
+                        {a.subject}
+                      </span>
+                    )}
+                    {a.chapter && (
+                      <p className="text-xs truncate" style={{ color: "#94A3B8" }}>{a.chapter}</p>
+                    )}
+                  </div>
 
                   {/* Submission progress */}
                   <div className="mb-3">

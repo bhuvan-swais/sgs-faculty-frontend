@@ -59,6 +59,46 @@ const navItems = [
       </svg>
     ),
   },
+  {
+    label: "Auto Test",
+    href: "/dashboard/auto-test",
+    badge: "AI",
+    icon: (
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+      </svg>
+    ),
+  },
+  {
+    label: "Auto Correct",
+    href: "/dashboard/auto-correct",
+    badge: "AI",
+    icon: (
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Translator",
+    href: "/dashboard/translator",
+    badge: "AI",
+    icon: (
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+      </svg>
+    ),
+  },
+  {
+    label: "Audio Translator",
+    href: "/dashboard/audio-translator",
+    badge: "AI",
+    icon: (
+      <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-7V4a3 3 0 00-3-3H9" />
+      </svg>
+    ),
+  },
 ];
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -98,14 +138,20 @@ export default function Sidebar({ isOpen, onClose }) {
             Main Menu
           </p>
 
-          {navItems.map((item) => {
+          {navItems.map((item, idx) => {
             const isActive = item.href === "/dashboard"
               ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
+            const isFirstAI = item.badge === "AI" && (idx === 0 || navItems[idx - 1].badge !== "AI");
 
             return (
+              <div key={item.label}>
+              {isFirstAI && (
+                <p className="px-3 mt-4 mb-3 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#334155" }}>
+                  AI Features
+                </p>
+              )}
               <Link
-                key={item.label}
                 href={item.href}
                 onClick={onClose}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group"
@@ -126,6 +172,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 )}
                 {isActive && !item.badge && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-400" />}
               </Link>
+              </div>
             );
           })}
         </nav>
