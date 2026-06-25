@@ -19,11 +19,7 @@ function DashboardShell({ children }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      window.location.href = "https://staging.sgs.swais.in";
-    }
-  }, [isAuthenticated, isLoading, router]);
+  useEffect(() => {}, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -35,8 +31,6 @@ function DashboardShell({ children }) {
       </div>
     );
   }
-
-  if (!isAuthenticated) return null;
 
   return (
     <div className="flex min-h-screen bg-bg">
