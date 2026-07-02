@@ -6,7 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
-  basePath: "/faculty",
+  basePath: process.env.NODE_ENV === "production" ? "/faculty" : "",
   turbopack: {
     root: __dirname,
   },
