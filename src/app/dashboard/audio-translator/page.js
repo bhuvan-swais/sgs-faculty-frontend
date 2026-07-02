@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("swais_faculty_token") : null;
+}
+
 const LANGUAGES = [
   { code: "en-IN", label: "English" },
   { code: "hi-IN", label: "Hindi (हिंदी)" },
@@ -81,12 +86,15 @@ export default function AudioTranslatorPage() {
     setIsTranslating(true);
     setTranslatedText("");
     try {
-      // TODO: Replace with AI Engineer's audio translation endpoint
-      // POST /api/v1/ai/translate-audio
-      // Body: { text: transcript, source_lang: sourceLang, target_lang: targetLang }
-      // Response: { translated_text: "...", audio_url: "..." (optional) }
-      await new Promise(r => setTimeout(r, 1800));
-      setTranslatedText(`[AI translation from ${sourceLang} → ${targetLang} will appear here once the AI Engineer's endpoint is connected]\n\nTranscribed: "${transcript}"`);
+      const targetLabel = LANGUAGES.find(l => l.code === targetLang)?.label || targetLang;
+      const res = await fetch(`${API}/api/v1/translate/text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ text: transcript, targetLanguage: targetLabel }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setTranslatedText(data.translatedText ?? data.translated_text ?? data.translation ?? data.result ?? JSON.stringify(data));
     } catch {
       setTranslatedText("Translation failed. Please try again.");
     } finally {
@@ -94,20 +102,42 @@ export default function AudioTranslatorPage() {
     }
   };
 
-  const handleSpeak = () => {
-    if (!translatedText || typeof window === "undefined") return;
+  const handleSpeak = async () => {
+    if (!translatedText) return;
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.cancel();
       setIsSpeaking(false);
       return;
     }
-    const utt = new SpeechSynthesisUtterance(translatedText);
-    utt.lang = targetLang;
-    utt.onend = () => setIsSpeaking(false);
-    utt.onerror = () => setIsSpeaking(false);
     setIsSpeaking(true);
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utt);
+    try {
+      const targetLabel = LANGUAGES.find(l => l.code === targetLang)?.label || "English";
+      const res = await fetch(`${API}/api/v1/speech/to-voice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ text: translatedText, language: targetLabel, voice: "Female" }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const audioSrc = data.audioUrl ?? data.audio_url ?? data.audioBase64 ?? data.audio ?? null;
+      if (audioSrc) {
+        const src = audioSrc.startsWith("http") ? audioSrc : `data:audio/mp3;base64,${audioSrc}`;
+        const audio = new Audio(src);
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => setIsSpeaking(false);
+        audio.play();
+      } else {
+        throw new Error("No audio in response");
+      }
+    } catch {
+      // fallback to browser TTS
+      const utt = new SpeechSynthesisUtterance(translatedText);
+      utt.lang = targetLang;
+      utt.onend = () => setIsSpeaking(false);
+      utt.onerror = () => setIsSpeaking(false);
+      window.speechSynthesis?.cancel();
+      window.speechSynthesis?.speak(utt);
+    }
   };
 
   const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -133,8 +163,8 @@ export default function AudioTranslatorPage() {
           </p>
         </div>
         <span className="ml-auto text-xs font-semibold px-3 py-1 rounded-full"
-          style={{ background: "#FFF7ED", color: "#EA580C", border: "1px solid #FED7AA" }}>
-          AI Endpoint Pending
+          style={{ background: "#ECFDF5", color: "#10B981", border: "1px solid #A7F3D0" }}>
+          AI Connected
         </span>
       </div>
 
@@ -266,16 +296,6 @@ export default function AudioTranslatorPage() {
         </div>
       )}
 
-      {/* Info */}
-      <div className="rounded-2xl p-4 flex items-start gap-3"
-        style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
-        <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#EA580C" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-xs" style={{ color: "#92400E" }}>
-          <strong>AI Integration Pending.</strong> Voice-to-text uses browser SpeechRecognition (works now). Translation requires <code>POST /api/v1/ai/translate-audio</code> from the AI Engineer.
-        </p>
-      </div>
     </div>
   );
 }

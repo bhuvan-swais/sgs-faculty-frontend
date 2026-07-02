@@ -13,13 +13,24 @@
 
 import { useState, useMemo } from "react";
 import { useNotes } from "@/context/NotesContext";
+import { useToast } from "@/components/ui/Toast";
 import NoteCard from "@/components/notes/NoteCard";
 import SearchBar from "@/components/ui/SearchBar";
 
 export default function NoteList({ onEditNote }) {
   const { notes, chapters, isLoading, removeNote } = useNotes();
+  const toast = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChapter, setSelectedChapter] = useState("");
+
+  const handleDelete = async (id) => {
+    try {
+      await removeNote(id);
+      toast.success("Note deleted successfully", "Deleted");
+    } catch {
+      toast.error("Could not delete note. Please try again.", "Error");
+    }
+  };
 
   // Filter notes based on search and chapter
   const filteredNotes = useMemo(() => {
@@ -80,11 +91,15 @@ export default function NoteList({ onEditNote }) {
           id="notes-chapter-filter"
         >
           <option value="">All Chapters</option>
-          {chapters.map((chapter) => (
-            <option key={chapter} value={chapter}>
-              {chapter}
-            </option>
-          ))}
+          {chapters.map((chapter) => {
+            const label = typeof chapter === "string" ? chapter : (chapter.content_title ?? chapter.chapter_name ?? String(chapter.chapter_id));
+            const key   = typeof chapter === "string" ? chapter : chapter.chapter_id;
+            return (
+              <option key={key} value={label}>
+                {label}
+              </option>
+            );
+          })}
         </select>
       </div>
 
@@ -116,7 +131,7 @@ export default function NoteList({ onEditNote }) {
               key={note.id}
               note={note}
               onEdit={onEditNote}
-              onDelete={removeNote}
+              onDelete={handleDelete}
             />
           ))}
         </div>

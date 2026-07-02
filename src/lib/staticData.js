@@ -232,14 +232,14 @@ export const FALLBACK_NOTES = [
 // Matches GET /api/v1/chapters → { chapters: [...] }
 
 export const FALLBACK_CHAPTERS = [
-  "Chapter 1 - The Indian Constitution",
-  "Chapter 2 - Understanding Secularism",
-  "Chapter 3 - Parliament and Laws",
-  "Chapter 4 - Judiciary",
-  "Chapter 5 - Understanding Marginalisation",
-  "Chapter 6 - Confronting Marginalisation",
-  "Chapter 7 - Public Facilities",
-  "Chapter 8 - Law and Social Justice",
+  { chapter_id: 1, chapter_name: "The Indian Constitution",        content_title: "Chapter 1 - The Indian Constitution" },
+  { chapter_id: 2, chapter_name: "Understanding Secularism",       content_title: "Chapter 2 - Understanding Secularism" },
+  { chapter_id: 3, chapter_name: "Parliament and Laws",            content_title: "Chapter 3 - Parliament and Laws" },
+  { chapter_id: 4, chapter_name: "Judiciary",                      content_title: "Chapter 4 - Judiciary" },
+  { chapter_id: 5, chapter_name: "Understanding Marginalisation",  content_title: "Chapter 5 - Understanding Marginalisation" },
+  { chapter_id: 6, chapter_name: "Confronting Marginalisation",    content_title: "Chapter 6 - Confronting Marginalisation" },
+  { chapter_id: 7, chapter_name: "Public Facilities",              content_title: "Chapter 7 - Public Facilities" },
+  { chapter_id: 8, chapter_name: "Law and Social Justice",         content_title: "Chapter 8 - Law and Social Justice" },
 ];
 
 // ─── Lesson Plan (generated fallback) ────────────────────────────────────────

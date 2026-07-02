@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { FALLBACK_STUDENTS } from "@/lib/staticData";
 
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("swais_faculty_token") : null;
+}
+
 const DUMMY_QUESTIONS = [
   { id: 1, question: "What is the full form of the Indian Constitution?", maxMarks: 2, type: "short" },
   { id: 2, question: "In which year was the Indian Constitution adopted?", maxMarks: 1, type: "mcq", options: ["1947", "1949", "1950", "1952"], answer: "1949" },
@@ -44,25 +49,45 @@ export default function AutoCorrectPage() {
   const handleCorrect = async () => {
     setIsProcessing(true);
     try {
-      // TODO: Replace with AI Engineer's correction endpoint
-      // POST /api/v1/ai/correct-answers
-      // Body: { topic: selectedTopic, questions: DUMMY_QUESTIONS, answers, student_id (optional) }
-      // Response: { results: [{ question_id, marks_awarded, feedback, is_correct }], total, percentage }
-      await new Promise(r => setTimeout(r, 2000));
-
-      const corrected = DUMMY_QUESTIONS.map(q => {
-        const awarded = Math.round(q.maxMarks * (0.5 + Math.random() * 0.5));
-        return {
-          question_id: q.id,
-          question: q.question,
-          answer: answers[q.id] || "(no answer)",
-          marks_awarded: awarded,
-          max_marks: q.maxMarks,
-          feedback: "AI feedback will appear here once the AI Engineer's endpoint is connected.",
-          is_correct: awarded === q.maxMarks,
-        };
-      });
-
+      const token = getToken();
+      const corrected = await Promise.all(
+        DUMMY_QUESTIONS.map(async (q) => {
+          try {
+            const res = await fetch(`${API}/api/v1/corrections/check`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({
+                question: q.question,
+                studentAnswer: answers[q.id] || "(no answer)",
+                maxMarks: q.maxMarks,
+                rubric: `${selectedTopic} — ${q.type} question`,
+              }),
+            });
+            const data = await res.json();
+            const awarded = data.marksAwarded ?? data.marks_awarded ?? data.score ?? 0;
+            const feedback = data.feedback ?? data.comment ?? data.remarks ?? "No feedback returned.";
+            return {
+              question_id: q.id,
+              question: q.question,
+              answer: answers[q.id] || "(no answer)",
+              marks_awarded: typeof awarded === "number" ? awarded : 0,
+              max_marks: q.maxMarks,
+              feedback,
+              is_correct: awarded === q.maxMarks,
+            };
+          } catch {
+            return {
+              question_id: q.id,
+              question: q.question,
+              answer: answers[q.id] || "(no answer)",
+              marks_awarded: 0,
+              max_marks: q.maxMarks,
+              feedback: "Could not evaluate. Please try again.",
+              is_correct: false,
+            };
+          }
+        })
+      );
       const total = corrected.reduce((s, r) => s + r.marks_awarded, 0);
       setResults({ items: corrected, total, max: totalMarks, percentage: Math.round((total / totalMarks) * 100) });
       setStep(3);
@@ -96,8 +121,8 @@ export default function AutoCorrectPage() {
           <p className="text-sm" style={{ color: "#94A3B8" }}>AI-powered answer evaluation and grading</p>
         </div>
         <span className="ml-auto text-xs font-semibold px-3 py-1 rounded-full"
-          style={{ background: "#FFF7ED", color: "#EA580C", border: "1px solid #FED7AA" }}>
-          AI Endpoint Pending
+          style={{ background: "#ECFDF5", color: "#10B981", border: "1px solid #A7F3D0" }}>
+          AI Connected
         </span>
       </div>
 
@@ -321,16 +346,6 @@ export default function AutoCorrectPage() {
         </div>
       )}
 
-      {/* Info */}
-      <div className="rounded-2xl p-4 flex items-start gap-3"
-        style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
-        <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#EA580C" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-xs" style={{ color: "#92400E" }}>
-          <strong>AI Integration Pending.</strong> Replace the placeholder in <code>handleCorrect()</code> with <code>POST /api/v1/ai/correct-answers</code> from the AI Engineer.
-        </p>
-      </div>
     </div>
   );
 }

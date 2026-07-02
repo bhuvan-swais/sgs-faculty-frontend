@@ -37,7 +37,11 @@ async function request(path, options = {}) {
     if (res.status === 401 && !path.includes("/auth/login")) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem("swais_faculty_auth");
-      if (typeof window !== "undefined") window.location.href = "https://staging.sgs.swais.in";
+      if (typeof window !== "undefined") {
+        window.location.href = process.env.NODE_ENV === "development"
+          ? "/"
+          : "https://staging.sgs.swais.in";
+      }
     }
     let detail = `HTTP ${res.status}`;
     try {

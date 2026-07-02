@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { NotesProvider } from "@/context/NotesContext";
+import { ToastProvider } from "@/components/ui/Toast";
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 
@@ -50,7 +51,9 @@ export default function DashboardLayout({ children }) {
   return (
     <AuthProvider>
       <NotesProvider>
-        <DashboardShell>{children}</DashboardShell>
+        <ToastProvider>
+          <DashboardShell>{children}</DashboardShell>
+        </ToastProvider>
       </NotesProvider>
     </AuthProvider>
   );

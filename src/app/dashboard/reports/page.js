@@ -73,8 +73,52 @@ function DonutChart({ pct, color, size = 120 }) {
   );
 }
 
+/* ── AI Insights panel ───────────────────────────── */
+function AIInsightsPanel({ text, onClose }) {
+  return (
+    <div className="rounded-2xl p-5 space-y-3 mt-4"
+      style={{ background: "linear-gradient(135deg,#EEF2FF,#F5F3FF)", border: "1px solid rgba(99,102,241,0.2)" }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg ai-gradient flex items-center justify-center">
+            <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+          </div>
+          <span className="text-sm font-bold" style={{ color: "#4338CA" }}>AI Insights</span>
+        </div>
+        <button onClick={onClose} className="text-xs px-2.5 py-1 rounded-lg cursor-pointer"
+          style={{ color: "#6366F1", background: "white" }}>Close</button>
+      </div>
+      <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "#1E293B" }}>{text}</p>
+    </div>
+  );
+}
+
 /* ── StudentSpotlight ────────────────────────────── */
-function StudentSpotlight({ student, totalAssessments, onBack }) {
+function StudentSpotlight({ student, totalAssessments, subject, onBack }) {
+  const [aiText,      setAiText]      = useState(null);
+  const [aiLoading,   setAiLoading]   = useState(false);
+
+  const handleStudentAnalytics = async () => {
+    const token = localStorage.getItem("swais_faculty_token");
+    setAiLoading(true);
+    setAiText(null);
+    try {
+      const res = await fetch(`${API}/api/v1/analytics/student`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ studentName: student.name, subject: subject || "Social Studies" }),
+      });
+      const data = await res.json();
+      setAiText(data?.analysis || data?.message || JSON.stringify(data));
+    } catch {
+      setAiText("Failed to get AI analysis. Please try again.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const pct   = student.average_percent ?? 0;
   const grade = getGrade(pct);
   const gc    = GRADE_COLOR[grade] || GRADE_COLOR["—"];
@@ -104,9 +148,17 @@ function StudentSpotlight({ student, totalAssessments, onBack }) {
           </svg>
           Class Overview
         </button>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg"
-          style={{ background: "#F8FAFC", color: "#94A3B8" }}>Student Spotlight</span>
+        <div className="flex items-center gap-2">
+          <button onClick={handleStudentAnalytics} disabled={aiLoading}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-all"
+            style={{ color: "white", background: aiLoading ? "#A5B4FC" : "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
+            {aiLoading ? "Analysing…" : "AI Analysis"}
+          </button>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+            style={{ background: "#F8FAFC", color: "#94A3B8" }}>Student Spotlight</span>
+        </div>
       </div>
+      {aiText && <AIInsightsPanel text={aiText} onClose={() => setAiText(null)} />}
 
       {/* Profile + donut */}
       <div className="flex items-center gap-5">
@@ -184,6 +236,29 @@ export default function ReportsPage() {
   const [search,          setSearch]          = useState("");
   const [sortBy,          setSortBy]          = useState("rank");
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [classAiText,     setClassAiText]     = useState(null);
+  const [classAiLoading,  setClassAiLoading]  = useState(false);
+
+  const subject = report?.subject || "Social Studies";
+
+  const handleClassAnalytics = async () => {
+    const token = localStorage.getItem("swais_faculty_token");
+    setClassAiLoading(true);
+    setClassAiText(null);
+    try {
+      const res = await fetch(`${API}/api/v1/analytics/class`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subject }),
+      });
+      const data = await res.json();
+      setClassAiText(data?.analysis || data?.message || JSON.stringify(data));
+    } catch {
+      setClassAiText("Failed to get AI analysis. Please try again.");
+    } finally {
+      setClassAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
@@ -241,12 +316,23 @@ export default function ReportsPage() {
           </div>
           <h1 className="text-2xl font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>Reports</h1>
         </div>
-        <p className="text-sm pl-10" style={{ color: "#94A3B8" }}>
-          Class {report?.class_name || "8"} — Section {report?.section || "A"} &nbsp;·&nbsp;
-          <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_assessments || 0}</span> assessments ·{" "}
-          <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_students || 0}</span> students
-          &nbsp;·&nbsp; <span className="text-xs">Click a student to see their spotlight</span>
-        </p>
+        <div className="flex items-center justify-between pl-10">
+          <p className="text-sm" style={{ color: "#94A3B8" }}>
+            Class {report?.class_name || "8"} — Section {report?.section || "A"} &nbsp;·&nbsp;
+            <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_assessments || 0}</span> assessments ·{" "}
+            <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_students || 0}</span> students
+            &nbsp;·&nbsp; <span className="text-xs">Click a student to see their spotlight</span>
+          </p>
+          <button onClick={handleClassAnalytics} disabled={classAiLoading}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg cursor-pointer transition-all shrink-0"
+            style={{ color: "white", background: classAiLoading ? "#A5B4FC" : "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            {classAiLoading ? "Analysing…" : "Class AI Analysis"}
+          </button>
+        </div>
+        {classAiText && <div className="pl-10"><AIInsightsPanel text={classAiText} onClose={() => setClassAiText(null)} /></div>}
       </div>
 
       {isLoading ? (
@@ -261,6 +347,7 @@ export default function ReportsPage() {
             <StudentSpotlight
               student={selectedStudent}
               totalAssessments={totalAssessments}
+              subject={subject}
               onBack={() => setSelectedStudent(null)}
             />
           ) : (

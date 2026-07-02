@@ -1,6 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+
+const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("swais_faculty_token") : null;
+}
 
 const LANGUAGES = [
   { code: "en",    label: "English" },
@@ -24,6 +29,8 @@ export default function TranslatorPage() {
   const [isLoading,   setIsLoading]   = useState(false);
   const [copied,      setCopied]      = useState(false);
   const [charCount,   setCharCount]   = useState(0);
+  const [isListening, setIsListening] = useState(false);
+  const mediaRecorderRef = useRef(null);
 
   const MAX_CHARS = 1000;
 
@@ -48,16 +55,59 @@ export default function TranslatorPage() {
     setIsLoading(true);
     setOutputText("");
     try {
-      // TODO: Replace with AI Engineer's translation endpoint
-      // POST /api/v1/ai/translate-text
-      // Body: { text: inputText, source_lang: sourceLang, target_lang: targetLang }
-      // Response: { translated_text: "..." }
-      await new Promise(r => setTimeout(r, 1500)); // simulate API delay
-      setOutputText(`[AI translation from ${sourceLang} → ${targetLang} will appear here once the AI Engineer's endpoint is connected]\n\nOriginal: "${inputText}"`);
+      const targetLabel = LANGUAGES.find(l => l.code === targetLang)?.label || targetLang;
+      const res = await fetch(`${API}/api/v1/translate/text`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ text: inputText, targetLanguage: targetLabel }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setOutputText(data.translatedText ?? data.translated_text ?? data.translation ?? data.result ?? JSON.stringify(data));
     } catch {
       setOutputText("Translation failed. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleMicInput = async () => {
+    if (isListening) {
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = (e) => chunks.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = reader.result.split(",")[1];
+          const langLabel = LANGUAGES.find(l => l.code === sourceLang)?.label || "English";
+          try {
+            const res = await fetch(`${API}/api/v1/speech/to-text`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+              body: JSON.stringify({ audioFile: base64, language: langLabel }),
+            });
+            const data = await res.json();
+            const text = data.text ?? data.transcript ?? data.result ?? "";
+            if (text) { setInputText(text); setCharCount(text.length); }
+          } catch { /* silent fail */ }
+          setIsListening(false);
+        };
+        reader.readAsDataURL(blob);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsListening(true);
+      setTimeout(() => mediaRecorderRef.current?.stop(), 6000);
+    } catch {
+      setIsListening(false);
     }
   };
 
@@ -98,8 +148,8 @@ export default function TranslatorPage() {
           </p>
         </div>
         <span className="ml-auto text-xs font-semibold px-3 py-1 rounded-full"
-          style={{ background: "#FFF7ED", color: "#EA580C", border: "1px solid #FED7AA" }}>
-          AI Endpoint Pending
+          style={{ background: "#ECFDF5", color: "#10B981", border: "1px solid #A7F3D0" }}>
+          AI Connected
         </span>
       </div>
 
@@ -158,10 +208,19 @@ export default function TranslatorPage() {
             className="w-full p-4 text-sm resize-none outline-none"
             style={{ color: "#0F172A", minHeight: "240px", background: "transparent" }}
           />
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 flex gap-2">
+            <button onClick={handleMicInput}
+              title={isListening ? "Stop recording" : "Speak to fill input"}
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all cursor-pointer"
+              style={{ background: isListening ? "#EF4444" : "#EEF2FF", color: isListening ? "white" : "#6366F1" }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-7V4a3 3 0 00-3-3H9" />
+              </svg>
+            </button>
             <button onClick={handleTranslate}
               disabled={!inputText.trim() || isLoading}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
               {isLoading ? "Translating…" : "Translate →"}
             </button>
@@ -232,16 +291,6 @@ export default function TranslatorPage() {
         </div>
       </div>
 
-      {/* Info banner */}
-      <div className="rounded-2xl p-4 flex items-start gap-3"
-        style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
-        <svg className="w-4 h-4 mt-0.5 shrink-0" style={{ color: "#EA580C" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p className="text-xs" style={{ color: "#92400E" }}>
-          <strong>AI Integration Pending.</strong> Once the AI Engineer provides the translation endpoint, replace the placeholder in <code>handleTranslate()</code> with <code>POST /api/v1/ai/translate-text</code>.
-        </p>
-      </div>
     </div>
   );
 }

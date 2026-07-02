@@ -17,6 +17,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getStroke } from "perfect-freehand";
 import { useNotes } from "@/context/NotesContext";
+import { useToast } from "@/components/ui/Toast";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 
@@ -102,6 +103,7 @@ const PEN_SIZES = [
 
 export default function NoteForm({ isOpen, onClose, editNote = null }) {
   const { addNote, editNote: updateNote, chapters } = useNotes();
+  const toast = useToast();
   const isEditing = !!editNote;
 
   // ── Shared form state ──────────────────────────────────────────────────────
@@ -334,9 +336,14 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
       };
 
       await (isEditing ? updateNote(editNote.id, noteData) : addNote(noteData));
+      toast.success(
+        isEditing ? "Note updated successfully" : "Note created successfully",
+        isEditing ? "Updated" : "Created"
+      );
       onClose();
     } catch (err) {
       console.error("Failed to save note:", err);
+      toast.error("Could not save note. Please try again.", "Error");
     } finally {
       setIsSaving(false);
     }
@@ -393,9 +400,11 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
                 : "border-border focus:ring-primary/30 focus:border-primary"}`}
           >
             <option value="">Select a chapter...</option>
-            {chapters.map((ch) => (
-              <option key={ch} value={ch}>{ch}</option>
-            ))}
+            {chapters.map((ch) => {
+              const label = typeof ch === "string" ? ch : (ch.content_title ?? ch.chapter_name ?? String(ch.chapter_id));
+              const key   = typeof ch === "string" ? ch : ch.chapter_id;
+              return <option key={key} value={label}>{label}</option>;
+            })}
           </select>
           {errors.chapter && <p className="mt-1 text-xs text-danger">{errors.chapter}</p>}
         </div>

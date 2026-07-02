@@ -377,11 +377,11 @@ export default function LessonPlannerPage() {
       .then(d => {
         const list = d.chapters?.length ? d.chapters : FALLBACK_CHAPTERS;
         setChapters(list);
-        setChapter(list[0] || "");
+        setChapter(list[0]?.chapter_id?.toString() || "");
       })
       .catch(() => {
         setChapters(FALLBACK_CHAPTERS);
-        setChapter(FALLBACK_CHAPTERS[0]);
+        setChapter(FALLBACK_CHAPTERS[0]?.chapter_id?.toString() || "");
       });
   }, []);
 
@@ -402,15 +402,14 @@ export default function LessonPlannerPage() {
     setPlan(null);
     setSaved(false);
     try {
+      const selectedChapter = chapters.find(c => c.chapter_id?.toString() === chapter?.toString());
       const res = await fetch(`${API}/api/v1/lesson-plans/generate`, {
         method: "POST",
         headers,
         body: JSON.stringify({
-          chapter,
-          topic: topic.trim() || null,
-          duration_minutes: duration,
-          objectives: objectives.filter(o => o.trim()),
-          special_notes: notes.trim() || null,
+          chapterId: parseInt(chapter),
+          chapterName: selectedChapter?.content_title || "",
+          durationMinutes: duration,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -418,10 +417,10 @@ export default function LessonPlannerPage() {
       setPlan(data);
       setTimeout(() => rightRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch {
-      // API unavailable — generate a local plan so the UI still works
+      const selectedChapter = chapters.find(c => c.chapter_id?.toString() === chapter?.toString());
       const offlinePlan = buildFallbackPlan(
-        chapter,
-        topic.trim() || null,
+        selectedChapter?.content_title || "",
+        null,
         duration,
       );
       setPlan(offlinePlan);
@@ -551,7 +550,7 @@ export default function LessonPlannerPage() {
                 style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "white" }}
                 onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
                 onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}>
-                {chapters.map(c => <option key={c} value={c}>{c}</option>)}
+                {chapters.map(c => <option key={c.chapter_id} value={c.chapter_id}>{c.content_title}</option>)}
               </select>
             </div>
 
