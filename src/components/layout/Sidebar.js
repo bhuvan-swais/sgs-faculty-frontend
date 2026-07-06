@@ -118,11 +118,13 @@ export default function Sidebar({ isOpen, onClose }) {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <div className="w-10 h-10 rounded-xl ai-gradient flex items-center justify-center text-white font-bold text-lg shadow-lg pulse-glow shrink-0">
-            S
-          </div>
+          <img
+            src="/sgs-logo.png"
+            alt="SGS Senior Secondary School"
+            className="w-10 h-10 rounded-full object-cover shrink-0"
+          />
           <div className="flex-1 min-w-0">
-            <h1 className="text-[15px] font-bold leading-tight tracking-tight ai-gradient-text">SWAIS</h1>
+            <h1 className="text-[15px] font-bold leading-tight tracking-tight ai-gradient-text">SGS Portal</h1>
             <p className="text-[10px] leading-tight mt-0.5" style={{ color: "#475569" }}>AI-Powered Faculty Portal</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg lg:hidden cursor-pointer" style={{ color: "#475569" }} aria-label="Close sidebar">
