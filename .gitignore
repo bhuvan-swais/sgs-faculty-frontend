@@ -42,3 +42,6 @@ next-env.d.ts
 .claude/
 CLAUDE.md
 AGENTS.md
+
+# local dev-only login helper (must never reach GitHub / EC2 — contains a token)
+public/dev-login.html
