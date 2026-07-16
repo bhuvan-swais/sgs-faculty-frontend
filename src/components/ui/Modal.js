@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 export default function Modal({
   isOpen,
@@ -39,9 +40,9 @@ export default function Modal({
     };
   }, [isOpen, handleKeyDown]);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
       id={id}
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
@@ -56,13 +57,13 @@ export default function Modal({
         aria-hidden="true"
       />
 
-      {/* Modal panel */}
+      {/* Modal panel — bounded to viewport height, vertically centered, inner content scrolls */}
       <div
-        className={`relative w-full ${maxWidth} bg-white rounded-2xl shadow-modal animate-scale-in overflow-hidden`}
+        className={`relative w-full ${maxWidth} max-h-[calc(100vh-2rem)] flex flex-col bg-white rounded-2xl shadow-modal animate-scale-in overflow-hidden`}
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
             <h2
               id="modal-title"
               className="text-lg font-bold text-primary"
@@ -91,9 +92,10 @@ export default function Modal({
           </div>
         )}
 
-        {/* Content */}
-        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto">{children}</div>
+        {/* Content — scrolls if it exceeds the bounded panel height */}
+        <div className="px-6 py-5 flex-1 min-h-0 overflow-y-auto">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

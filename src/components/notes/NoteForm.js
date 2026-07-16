@@ -359,10 +359,13 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
       isOpen={isOpen}
       onClose={onClose}
       title={isEditing ? "Edit Note" : "Create New Note"}
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-4xl"
       id="note-form-modal"
     >
       <form onSubmit={handleSubmit} className="space-y-5">
+
+        {/* ── Title + Chapter (full-width top row) ── */}
+        <div className="grid gap-4 sm:grid-cols-2">
 
         {/* ── Title ── */}
         <div>
@@ -409,27 +412,41 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
           {errors.chapter && <p className="mt-1 text-xs text-danger">{errors.chapter}</p>}
         </div>
 
-        {/* ── Input mode tabs ── */}
-        <div>
-          <div className="flex items-center gap-1 p-1 bg-bg rounded-xl border border-border w-fit mb-4">
-            {[
-              { id: "voice", icon: "🎤", label: "Voice" },
-              { id: "write", icon: "✏️",  label: "Write" },
-              { id: "type",  icon: "⌨️",  label: "Type"  },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => switchMode(tab.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${inputMode === tab.id
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-text-light hover:text-text hover:bg-white/50"}`}
-              >
-                <span className="mr-1.5">{tab.icon}</span>{tab.label}
-              </button>
-            ))}
+        </div>{/* end Title + Chapter row */}
+
+        {/* ── Two-pane: mode picker (left rail) + content (right) ── */}
+        <div className="grid gap-5 md:grid-cols-[240px_minmax(0,1fr)]">
+
+          {/* Left rail — input-mode picker */}
+          <div>
+            <label className="block text-sm font-medium text-text mb-2">How do you want to add it?</label>
+            <div className="grid grid-cols-3 md:grid-cols-1 gap-2">
+              {[
+                { id: "voice", icon: "🎤", label: "Voice", desc: "Speak your note" },
+                { id: "write", icon: "✏️",  label: "Write", desc: "Handwrite / draw" },
+                { id: "type",  icon: "⌨️",  label: "Type",  desc: "Plain text" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => switchMode(tab.id)}
+                  className={`flex flex-col md:flex-row items-center md:items-start gap-1.5 md:gap-2.5 p-3 rounded-xl border text-center md:text-left transition-all duration-200
+                    ${inputMode === tab.id
+                      ? "border-primary bg-primary-light text-primary shadow-sm"
+                      : "border-border text-text-light hover:border-primary/40 hover:bg-bg"}`}
+                >
+                  <span className="text-lg leading-none md:mt-0.5">{tab.icon}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold">{tab.label}</span>
+                    <span className="hidden md:block text-xs text-text-lighter mt-0.5">{tab.desc}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* Right pane — active mode content */}
+          <div className="min-w-0">
 
           {/* ══ VOICE TAB ══════════════════════════════════════════════════════ */}
           {inputMode === "voice" && (
@@ -675,7 +692,8 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
               </div>
             </div>
           )}
-        </div>
+          </div>{/* end right pane */}
+        </div>{/* end two-pane */}
 
         {/* ── Actions ── */}
         <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
