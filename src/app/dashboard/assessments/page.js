@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { FALLBACK_ASSESSMENTS, FALLBACK_ASSESSMENT_RESULTS } from "@/lib/staticData";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -74,9 +73,7 @@ function ResultDrawer({ assessment, onClose }) {
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
     if (!token) {
-      // No token — use static fallback results directly
-      const fallback = FALLBACK_ASSESSMENT_RESULTS[assessment.assessment_id];
-      setDetail(fallback ? { ...assessment, ...fallback } : { ...assessment, results: [] });
+      setDetail({ ...assessment, results: [] });
       setLoading(false);
       return;
     }
@@ -91,9 +88,8 @@ function ResultDrawer({ assessment, onClose }) {
       })
       .then(setDetail)
       .catch(() => {
-        // API unavailable — fall back to static results
-        const fallback = FALLBACK_ASSESSMENT_RESULTS[assessment.assessment_id];
-        setDetail(fallback ? { ...assessment, ...fallback } : { ...assessment, results: [] });
+        // API unavailable — show empty results, no mock data
+        setDetail({ ...assessment, results: [] });
       })
       .finally(() => setLoading(false));
   }, [assessment.assessment_id]);
@@ -310,7 +306,7 @@ export default function AssessmentsPage() {
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
     if (!token) {
-      setAssessments(FALLBACK_ASSESSMENTS);
+      setAssessments([]);
       setIsLoading(false);
       return;
     }
@@ -325,10 +321,10 @@ export default function AssessmentsPage() {
         return r.json();
       })
       .then(d => setAssessments(d.assessments || []))
-      .catch(() => {
-        // API unavailable — fall back to static demo data
-        setAssessments(FALLBACK_ASSESSMENTS);
-        setError(null);
+      .catch((err) => {
+        // API unavailable — show empty state, no mock data
+        setAssessments([]);
+        setError(err?.message || "Unable to load assessments.");
       })
       .finally(() => setIsLoading(false));
   }, []);

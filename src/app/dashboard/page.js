@@ -1,18 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNotes } from "@/context/NotesContext";
 import Link from "next/link";
 
-const TODAY = new Date("2026-06-24");
-
-const DUMMY_ASSIGNMENTS = [
-  { id: 1, title: "English Grammar Assignment",  subject: "English",       dueDate: "2026-06-24", submittedCount: 7,  totalStudents: 10 },
-  { id: 2, title: "Hindi Essay Writing",          subject: "Hindi",         dueDate: "2026-06-25", submittedCount: 9,  totalStudents: 10 },
-  { id: 3, title: "Algebra Unit Test Revision",   subject: "Mathematics",   dueDate: "2026-06-27", submittedCount: 10, totalStudents: 10 },
-  { id: 4, title: "Science Lab Report",           subject: "Science",       dueDate: "2026-06-30", submittedCount: 4,  totalStudents: 10 },
-  { id: 5, title: "Social Studies Map Work",      subject: "Social Studies",dueDate: "2026-07-02", submittedCount: 6,  totalStudents: 10 },
-];
+const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+const TODAY = new Date();
 
 function getDueDays(dueDateStr) {
   const due = new Date(dueDateStr);
@@ -30,6 +24,23 @@ function DueLabel({ days }) {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { notes, totalNotes, isLoading } = useNotes();
+  const [assignments, setAssignments] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("swais_faculty_token");
+    if (!token) return;
+    fetch(`${API}/api/v1/assignments`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setAssignments((d.assignments || []).map(a => ({
+        id: a.assignment_id,
+        title: a.title,
+        subject: a.subject,
+        dueDate: a.due_date,
+        submittedCount: a.submitted_count,
+        totalStudents: a.total_students,
+      }))))
+      .catch(() => setAssignments([]));
+  }, []);
 
   const coveredChapters = [...new Set(notes.map((n) => n.chapter))].length;
   const recentNotes = notes.slice(0, 3);
@@ -54,7 +65,7 @@ export default function DashboardPage() {
     },
     {
       label: "Students",
-      value: user?.totalStudents || 200,
+      value: user?.totalStudents ?? "—",
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
@@ -164,12 +175,15 @@ export default function DashboardPage() {
           </div>
           <p className="text-white/80 text-sm mb-1">Welcome back,</p>
           <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ fontFamily: "var(--font-space-grotesk)" }}>
-            {user?.name || "Teacher"} 👋
+            {user?.name || ""} 👋
           </h1>
           <p className="text-white/80 text-sm max-w-lg">
-            Managing Class {user?.class || "8"}{user?.section ? `-${user.section}` : ""} · {user?.subject || "Social Studies"} &nbsp;·&nbsp;
-            <span className="font-semibold text-white">{totalNotes} notes</span> &nbsp;&amp;&nbsp;
-            <span className="font-semibold text-white">{user?.totalStudents || 200} students</span>
+            {user?.class ? `Managing Class ${user.class}${user?.section ? `-${user.section}` : ""}` : ""}
+            {user?.subject ? ` · ${user.subject}` : ""} &nbsp;·&nbsp;
+            <span className="font-semibold text-white">{totalNotes} notes</span>
+            {user?.totalStudents != null && (
+              <>&nbsp;&amp;&nbsp;<span className="font-semibold text-white">{user.totalStudents} students</span></>
+            )}
           </p>
         </div>
       </div>
@@ -313,15 +327,18 @@ export default function DashboardPage() {
               </h2>
               <p className="text-xs" style={{ color: "#94A3B8" }}>Upcoming assignment deadlines</p>
             </div>
-            {DUMMY_ASSIGNMENTS.filter(a => getDueDays(a.dueDate) <= 1).length > 0 && (
+            {assignments.filter(a => getDueDays(a.dueDate) <= 1).length > 0 && (
               <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full animate-pulse"
                 style={{ background: "#FEF2F2", color: "#EF4444" }}>
-                {DUMMY_ASSIGNMENTS.filter(a => getDueDays(a.dueDate) <= 1).length} urgent
+                {assignments.filter(a => getDueDays(a.dueDate) <= 1).length} urgent
               </span>
             )}
           </div>
           <div className="space-y-2.5">
-            {DUMMY_ASSIGNMENTS.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)).map(a => {
+            {assignments.length === 0 && (
+              <p className="text-sm text-center py-6" style={{ color: "#94A3B8" }}>No upcoming assignments.</p>
+            )}
+            {[...assignments].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate)).map(a => {
               const days = getDueDays(a.dueDate);
               const isUrgent = days <= 1;
               return (
@@ -357,15 +374,18 @@ export default function DashboardPage() {
               </h2>
               <p className="text-xs" style={{ color: "#94A3B8" }}>Assignment submission status</p>
             </div>
-            {DUMMY_ASSIGNMENTS.filter(a => a.submittedCount < a.totalStudents).length > 0 && (
+            {assignments.filter(a => a.submittedCount < a.totalStudents).length > 0 && (
               <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full"
                 style={{ background: "#EEF2FF", color: "#6366F1" }}>
-                {DUMMY_ASSIGNMENTS.filter(a => a.submittedCount < a.totalStudents).length} pending
+                {assignments.filter(a => a.submittedCount < a.totalStudents).length} pending
               </span>
             )}
           </div>
           <div className="space-y-2.5">
-            {DUMMY_ASSIGNMENTS.map(a => {
+            {assignments.length === 0 && (
+              <p className="text-sm text-center py-6" style={{ color: "#94A3B8" }}>No submission data yet.</p>
+            )}
+            {assignments.map(a => {
               const pct = Math.round((a.submittedCount / a.totalStudents) * 100);
               const allDone = a.submittedCount === a.totalStudents;
               const pendingCount = a.totalStudents - a.submittedCount;

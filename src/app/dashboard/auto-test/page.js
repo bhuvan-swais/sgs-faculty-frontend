@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FALLBACK_CHAPTERS } from "@/lib/staticData";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 function getToken() {
@@ -378,7 +377,7 @@ export default function AutoTestPage() {
   const [questions,   setQuestions]   = useState([]);
   const [rawResponse, setRawResponse] = useState(null);
   const [error,       setError]       = useState("");
-  const [chapters,    setChapters]    = useState(FALLBACK_CHAPTERS);
+  const [chapters,    setChapters]    = useState([]);
 
   useEffect(() => {
     const token = getToken();

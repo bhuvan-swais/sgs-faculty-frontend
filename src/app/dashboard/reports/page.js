@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FALLBACK_REPORT } from "@/lib/staticData";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -108,7 +107,7 @@ function StudentSpotlight({ student, totalAssessments, subject, onBack }) {
       const res = await fetch(`${API}/api/v1/analytics/student`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ studentName: student.name, subject: subject || "Social Studies" }),
+        body: JSON.stringify({ studentName: student.name, subject }),
       });
       const data = await res.json();
       setAiText(data?.analysis || data?.message || JSON.stringify(data));
@@ -239,7 +238,7 @@ export default function ReportsPage() {
   const [classAiText,     setClassAiText]     = useState(null);
   const [classAiLoading,  setClassAiLoading]  = useState(false);
 
-  const subject = report?.subject || "Social Studies";
+  const subject = report?.subject || "";
 
   const handleClassAnalytics = async () => {
     const token = localStorage.getItem("swais_faculty_token");
@@ -263,7 +262,7 @@ export default function ReportsPage() {
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
     if (!token) {
-      setReport(FALLBACK_REPORT);
+      setReport(null);
       setIsLoading(false);
       return;
     }
@@ -277,8 +276,8 @@ export default function ReportsPage() {
       })
       .then(d => setReport(d))
       .catch(() => {
-        // API unavailable — fall back to static demo data
-        setReport(FALLBACK_REPORT);
+        // API unavailable — show empty state, no mock data
+        setReport(null);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -318,7 +317,7 @@ export default function ReportsPage() {
         </div>
         <div className="flex items-center justify-between pl-10">
           <p className="text-sm" style={{ color: "#94A3B8" }}>
-            Class {report?.class_name || "8"} — Section {report?.section || "A"} &nbsp;·&nbsp;
+            {report?.class_name ? `Class ${report.class_name}` : ""}{report?.section ? ` — Section ${report.section}` : ""} &nbsp;·&nbsp;
             <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_assessments || 0}</span> assessments ·{" "}
             <span className="font-semibold" style={{ color: "#6366F1" }}>{report?.total_students || 0}</span> students
             &nbsp;·&nbsp; <span className="text-xs">Click a student to see their spotlight</span>

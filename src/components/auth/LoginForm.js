@@ -43,7 +43,7 @@ export default function LoginForm() {
           Welcome back 👋
         </h2>
         <p className="text-sm mb-6" style={{ color: "#94A3B8" }}>
-          Sign in to manage your Class 8 Social Studies content
+          Sign in to your faculty dashboard
         </p>
 
         {/* Error Alert */}
@@ -74,7 +74,7 @@ export default function LoginForm() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="sandipani.acharya@swais.edu"
+                placeholder="you@school.edu"
                 required
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm transition-all duration-200 focus:outline-none"
                 style={{
@@ -156,20 +156,6 @@ export default function LoginForm() {
             {isLoading ? "Signing in…" : "Sign In →"}
           </Button>
         </form>
-
-        {/* Demo Credentials */}
-        <div className="mt-6 p-3.5 rounded-xl" style={{ background: "linear-gradient(135deg,#EEF2FF,#F5F3FF)", border: "1px solid #DDD6FE" }}>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="text-[10px]">⚡</span>
-            <p className="text-xs font-bold" style={{ color: "#6366F1" }}>Demo Credentials</p>
-          </div>
-          <p className="text-xs" style={{ color: "#64748B" }}>
-            Email: <span className="font-mono" style={{ color: "#4F46E5" }}>sandipani.acharya@swais.edu</span>
-          </p>
-          <p className="text-xs" style={{ color: "#64748B" }}>
-            Password: <span className="font-mono" style={{ color: "#4F46E5" }}>swais@123</span>
-          </p>
-        </div>
       </div>
 
       {/* Footer */}

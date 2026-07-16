@@ -48,18 +48,6 @@ export function AuthProvider({ children }) {
         //    call /api/v1/auth/me to get the user profile
         const token = localStorage.getItem("swais_faculty_token");
         if (token) {
-          // Dev bypass: skip API call for local testing
-          if (process.env.NODE_ENV === "development" && token === "dev") {
-            const devUser = {
-              id: "T001", teacher_id: 1, name: "Demo Teacher",
-              email: "demo@swais.edu", avatar: "DT",
-              subject: "Social Studies", class: "8", section: "A",
-              school: "SWAIS", totalStudents: 10,
-            };
-            setUser(devUser);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(devUser));
-            return;
-          }
           const { fetchMe } = await import("@/lib/api");
           const profile = await fetchMe();
           if (profile) {

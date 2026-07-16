@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { FALLBACK_CHAPTERS, buildFallbackPlan } from "@/lib/staticData";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -365,24 +364,25 @@ export default function LessonPlannerPage() {
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
   const [editing,     setEditing]     = useState(false);  // back on the form but keep the last plan
+  const [genError,    setGenError]    = useState("");
   const [savedPlans,  setSavedPlans]  = useState([]);
   const [plansLoading,setPlansLoading]= useState(false);
   const rightRef = useRef(null);
 
   const headers = { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" };
 
-  // Load chapters on mount — fall back to static list if API is unreachable
+  // Load chapters on mount from the API (no mock fallback)
   useEffect(() => {
     fetch(`${API}/api/v1/chapters`, { headers })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => {
-        const list = d.chapters?.length ? d.chapters : FALLBACK_CHAPTERS;
+        const list = d.chapters || [];
         setChapters(list);
         setChapter(list[0]?.chapter_id?.toString() || "");
       })
       .catch(() => {
-        setChapters(FALLBACK_CHAPTERS);
-        setChapter(FALLBACK_CHAPTERS[0]?.chapter_id?.toString() || "");
+        setChapters([]);
+        setChapter("");
       });
   }, []);
 
@@ -400,6 +400,7 @@ export default function LessonPlannerPage() {
   const handleGenerate = async () => {
     if (!chapter) return;
     setEditing(false);
+    setGenError("");
     setGenerating(true);
     setPlan(null);
     setSaved(false);
@@ -419,14 +420,8 @@ export default function LessonPlannerPage() {
       setPlan(data);
       setTimeout(() => rightRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     } catch {
-      const selectedChapter = chapters.find(c => c.chapter_id?.toString() === chapter?.toString());
-      const offlinePlan = buildFallbackPlan(
-        selectedChapter?.content_title || "",
-        null,
-        duration,
-      );
-      setPlan(offlinePlan);
-      setTimeout(() => rightRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+      setPlan(null);
+      setGenError("Couldn't generate the lesson plan. Please try again.");
     } finally {
       setGenerating(false);
     }
@@ -684,6 +679,14 @@ export default function LessonPlannerPage() {
                 onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
               />
             </div>
+
+            {/* Generation error */}
+            {genError && (
+              <div className="rounded-xl px-4 py-3 text-sm font-medium"
+                style={{ background: "#FEF2F2", color: "#B91C1C", border: "1px solid #FECACA" }}>
+                {genError}
+              </div>
+            )}
 
             {/* Generate button */}
             <button onClick={handleGenerate} disabled={!chapter || generating}

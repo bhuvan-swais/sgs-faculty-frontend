@@ -1,19 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { FALLBACK_STUDENTS } from "@/lib/staticData";
+import { useState, useEffect } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 function getToken() {
   return typeof window !== "undefined" ? localStorage.getItem("swais_faculty_token") : null;
 }
 
-const DUMMY_QUESTIONS = [
-  { id: 1, question: "What is the full form of the Indian Constitution?", maxMarks: 2, type: "short" },
-  { id: 2, question: "In which year was the Indian Constitution adopted?", maxMarks: 1, type: "mcq", options: ["1947", "1949", "1950", "1952"], answer: "1949" },
-  { id: 3, question: "Name the three organs of the Indian Government.", maxMarks: 3, type: "short" },
-  { id: 4, question: "What is secularism? Explain with an example.", maxMarks: 5, type: "long" },
-];
+// Questions come from a real source once wired — no mock data
+const QUESTIONS = [];
 
 const GRADE_STYLE = {
   "A+": { color: "#10B981", bg: "#ECFDF5" },
@@ -33,14 +28,30 @@ function getGrade(pct) {
 
 export default function AutoCorrectPage() {
   const [step,          setStep]          = useState(1); // 1=setup, 2=answers, 3=results
-  const [selectedTopic, setSelectedTopic] = useState("Chapter 1 - The Indian Constitution");
+  const [selectedTopic, setSelectedTopic] = useState("");
   const [answers,       setAnswers]       = useState({});
   const [studentMode,   setStudentMode]   = useState("class");
   const [selectedStudent, setSelectedStudent] = useState("");
   const [isProcessing,  setIsProcessing]  = useState(false);
   const [results,       setResults]       = useState(null);
+  const [students,      setStudents]      = useState([]);
+  const [topics,        setTopics]        = useState([]);
 
-  const totalMarks = DUMMY_QUESTIONS.reduce((s, q) => s + q.maxMarks, 0);
+  // Load real students + chapters from the API (no mock data)
+  useEffect(() => {
+    const token = getToken();
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetch(`${API}/api/v1/students`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setStudents(d.students || []))
+      .catch(() => setStudents([]));
+    fetch(`${API}/api/v1/chapters`, { headers })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setTopics(d.chapters || []))
+      .catch(() => setTopics([]));
+  }, []);
+
+  const totalMarks = QUESTIONS.reduce((s, q) => s + q.maxMarks, 0);
 
   const handleAnswerChange = (qId, val) => {
     setAnswers(prev => ({ ...prev, [qId]: val }));
@@ -51,7 +62,7 @@ export default function AutoCorrectPage() {
     try {
       const token = getToken();
       const corrected = await Promise.all(
-        DUMMY_QUESTIONS.map(async (q) => {
+        QUESTIONS.map(async (q) => {
           try {
             const res = await fetch(`${API}/api/v1/corrections/check`, {
               method: "POST",
@@ -89,7 +100,7 @@ export default function AutoCorrectPage() {
         })
       );
       const total = corrected.reduce((s, r) => s + r.marks_awarded, 0);
-      setResults({ items: corrected, total, max: totalMarks, percentage: Math.round((total / totalMarks) * 100) });
+      setResults({ items: corrected, total, max: totalMarks, percentage: totalMarks ? Math.round((total / totalMarks) * 100) : 0 });
       setStep(3);
     } finally {
       setIsProcessing(false);
@@ -160,10 +171,10 @@ export default function AutoCorrectPage() {
             <select value={selectedTopic} onChange={e => setSelectedTopic(e.target.value)}
               className="w-full text-sm rounded-xl px-3 py-2.5 outline-none"
               style={{ border: "1px solid #E2E8F0", color: "#0F172A", background: "#F8FAFC" }}>
-              <option>Chapter 1 - The Indian Constitution</option>
-              <option>Chapter 2 - Understanding Secularism</option>
-              <option>Chapter 3 - Why Do We Need a Parliament?</option>
-              <option>Chapter 4 - Understanding Laws</option>
+              <option value="">-- Select topic --</option>
+              {topics.map(t => (
+                <option key={t.chapter_id} value={t.content_title}>{t.content_title}</option>
+              ))}
             </select>
           </div>
 
@@ -194,7 +205,7 @@ export default function AutoCorrectPage() {
                 className="w-full text-sm rounded-xl px-3 py-2.5 outline-none"
                 style={{ border: "1px solid #E2E8F0", color: "#0F172A", background: "#F8FAFC" }}>
                 <option value="">-- Select student --</option>
-                {FALLBACK_STUDENTS.map(s => (
+                {students.map(s => (
                   <option key={s.student_id} value={s.student_id}>{s.roll_no}. {s.full_name}</option>
                 ))}
               </select>
@@ -206,12 +217,14 @@ export default function AutoCorrectPage() {
               Questions for: <span style={{ color: "#6366F1" }}>{selectedTopic}</span>
             </p>
             <p className="text-xs" style={{ color: "#94A3B8" }}>
-              {DUMMY_QUESTIONS.length} questions · {totalMarks} total marks
+              {QUESTIONS.length > 0
+                ? `${QUESTIONS.length} questions · ${totalMarks} total marks`
+                : "No questions available — a question source needs to be connected."}
             </p>
           </div>
 
-          <button onClick={() => setStep(2)}
-            className="w-full py-3 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all"
+          <button onClick={() => setStep(2)} disabled={QUESTIONS.length === 0}
+            className="w-full py-3 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
             Start Entering Answers →
           </button>
@@ -221,7 +234,7 @@ export default function AutoCorrectPage() {
       {/* Step 2: Enter Answers */}
       {step === 2 && (
         <div className="space-y-4">
-          {DUMMY_QUESTIONS.map((q, idx) => (
+          {QUESTIONS.map((q, idx) => (
             <div key={q.id} className="bg-white rounded-2xl p-5"
               style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
               <div className="flex items-start justify-between gap-3 mb-3">

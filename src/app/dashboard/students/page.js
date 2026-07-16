@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { FALLBACK_STUDENTS, FALLBACK_REPORT } from "@/lib/staticData";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -199,15 +198,46 @@ function AssignModal({ students, onClose, onSuccess }) {
   // students = array (length 1 = single, >1 = bulk)
   const isBulk = students.length > 1;
   const [title,   setTitle]   = useState("");
-  const [subject, setSubject] = useState("Social Studies");
+  const [subject, setSubject] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [desc,    setDesc]    = useState("");
   const [done,    setDone]    = useState(false);
+  const [subjects, setSubjects] = useState([]);
+  const [saving,  setSaving]  = useState(false);
+  const [error,   setError]   = useState("");
 
-  const handleAssign = () => {
-    if (!title.trim() || !dueDate) return;
-    setDone(true);
-    if (onSuccess) onSuccess();
+  useEffect(() => {
+    const token = localStorage.getItem("swais_faculty_token");
+    fetch(`${API}/api/v1/subjects`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setSubjects(d.subjects || []))
+      .catch(() => setSubjects([]));
+  }, []);
+
+  const handleAssign = async () => {
+    if (!title.trim() || !dueDate || saving) return;
+    setSaving(true);
+    setError("");
+    const token = localStorage.getItem("swais_faculty_token");
+    try {
+      const res = await fetch(`${API}/api/v1/assignments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          title: title.trim(),
+          text: desc || null,
+          subject_id: subject ? Number(subject) : null,
+          due_date: dueDate,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setDone(true);
+      if (onSuccess) onSuccess();
+    } catch {
+      setError("Couldn't create the assignment. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -311,8 +341,9 @@ function AssignModal({ students, onClose, onSuccess }) {
                       style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "white" }}
                       onFocus={e => e.target.style.border = "1.5px solid #6366F1"}
                       onBlur={e  => e.target.style.border = "1.5px solid #E2E8F0"}>
-                      {["Social Studies","Mathematics","Science","English","Hindi"].map(s => (
-                        <option key={s}>{s}</option>
+                      <option value="">-- Select subject --</option>
+                      {subjects.map(s => (
+                        <option key={s.subject_id} value={s.subject_id}>{s.subject_name}</option>
                       ))}
                     </select>
                   </div>
@@ -345,6 +376,10 @@ function AssignModal({ students, onClose, onSuccess }) {
                 </div>
               </div>
 
+              {error && (
+                <p className="mt-4 text-sm font-medium" style={{ color: "#B91C1C" }}>{error}</p>
+              )}
+
               <div className="flex gap-2 mt-5">
                 <button onClick={onClose}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
@@ -354,13 +389,13 @@ function AssignModal({ students, onClose, onSuccess }) {
                   Cancel
                 </button>
                 <button onClick={handleAssign}
-                  disabled={!title.trim() || !dueDate}
+                  disabled={!title.trim() || !dueDate || saving}
                   className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
                   style={{
-                    background: (title.trim() && dueDate) ? "linear-gradient(135deg,#6366F1,#8B5CF6)" : "#E2E8F0",
-                    color: (title.trim() && dueDate) ? "white" : "#94A3B8",
+                    background: (title.trim() && dueDate && !saving) ? "linear-gradient(135deg,#6366F1,#8B5CF6)" : "#E2E8F0",
+                    color: (title.trim() && dueDate && !saving) ? "white" : "#94A3B8",
                   }}>
-                  {isBulk ? `Assign to ${students.length} Students` : "Assign"}
+                  {saving ? "Assigning…" : isBulk ? `Assign to ${students.length} Students` : "Assign"}
                 </button>
               </div>
             </>
@@ -518,7 +553,7 @@ function StudentDrawer({ student, perf, onNotify, onAssign, onClose }) {
           <div className="flex gap-3">
             <div className="flex-1 rounded-xl p-3 text-center" style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
               <p className="text-[10px] font-semibold" style={{ color: "#6366F1" }}>CLASS</p>
-              <p className="text-2xl font-bold" style={{ color: "#4F46E5" }}>{student.class_id || "8"}</p>
+              <p className="text-2xl font-bold" style={{ color: "#4F46E5" }}>{student.class_id ?? "—"}</p>
             </div>
             <div className="flex-1 rounded-xl p-3 text-center" style={{ background: "#F5F3FF", border: "1px solid #DDD6FE" }}>
               <p className="text-[10px] font-semibold" style={{ color: "#8B5CF6" }}>SECTION</p>
@@ -590,13 +625,11 @@ export default function StudentsPage() {
         (rd.students || []).forEach(s => { map[s.student_id] = s; });
         setReportMap(map);
       })
-      .catch(() => {
-        // API unreachable — fall back to static demo data silently
-        setStudents(FALLBACK_STUDENTS);
-        const map = {};
-        FALLBACK_REPORT.students.forEach(s => { map[s.student_id] = s; });
-        setReportMap(map);
-        setError(null);
+      .catch((err) => {
+        // API unreachable — show empty state, no mock data
+        setStudents([]);
+        setReportMap({});
+        setError(err?.message || "Unable to load students.");
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -625,7 +658,7 @@ export default function StudentsPage() {
               </h1>
             </div>
             <p className="text-sm pl-10" style={{ color: "#94A3B8" }}>
-              Class {user?.class || "8"} — Section {user?.section || "A"} &nbsp;·&nbsp;
+              {user?.class ? `Class ${user.class}` : ""}{user?.section ? ` — Section ${user.section}` : ""} &nbsp;·&nbsp;
               <span className="font-semibold" style={{ color: "#6366F1" }}>{students.length}</span> students enrolled
             </p>
           </div>

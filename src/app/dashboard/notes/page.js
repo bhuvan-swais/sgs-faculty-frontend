@@ -54,7 +54,7 @@ export default function NotesPage() {
             <h1 className="text-2xl font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>Notes</h1>
           </div>
           <p className="text-sm pl-10" style={{ color: "#94A3B8" }}>
-            Create, manage, and organize your Class 8 Social Studies notes
+            Create, manage, and organize your notes
           </p>
         </div>
 

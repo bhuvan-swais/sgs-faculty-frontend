@@ -66,22 +66,6 @@ async function request(path, options = {}) {
  * Authenticate teacher — POST /api/v1/auth/login
  * Stores JWT in localStorage on success.
  */
-// Demo credentials accepted when the backend is unreachable
-const DEMO_USER = {
-  id:           "T016",
-  teacher_id:   16,
-  name:         "Sandipani Acharya",
-  email:        "sandipani.acharya@swais.edu",
-  avatar:       "SA",
-  subject:      "Social Studies",
-  class:        "8th Grade",
-  section:      "A",
-  school:       "SWAIS",
-  totalStudents: 10,
-};
-const DEMO_EMAIL    = "sandipani.acharya@swais.edu";
-const DEMO_PASSWORD = "swais@123";
-
 export async function loginTeacher(email, password) {
   try {
     const data = await request("/api/v1/auth/login", {
@@ -103,25 +87,16 @@ export async function loginTeacher(email, password) {
       class: data.class_assigned,
       section: data.section,
       school: data.school_name,
-      totalStudents: 10,
+      totalStudents: data.total_students ?? null,
     };
 
     return { success: true, user };
   } catch (err) {
-    // If the server responded with an HTTP error (e.g. 401 wrong password),
-    // show the real error — do NOT fall back to offline mode.
+    // Surface the real error — no offline/demo fallback.
     if (err.status) {
       return { success: false, error: err.message || "Invalid email or password." };
     }
-    // Network/API genuinely unreachable — allow demo credentials offline
-    if (
-      email.trim().toLowerCase() === DEMO_EMAIL &&
-      password === DEMO_PASSWORD
-    ) {
-      localStorage.setItem(TOKEN_KEY, "offline-demo-token");
-      return { success: true, user: DEMO_USER };
-    }
-    return { success: false, error: "Unable to reach server. Use demo credentials to explore offline." };
+    return { success: false, error: "Unable to reach the server. Please try again." };
   }
 }
 
@@ -142,7 +117,7 @@ export async function fetchMe() {
       class: data.class_assigned,
       section: data.section,
       school: data.school_name,
-      totalStudents: data.total_students || 10,
+      totalStudents: data.total_students ?? null,
     };
   } catch {
     return null;
