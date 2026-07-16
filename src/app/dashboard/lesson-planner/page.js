@@ -364,6 +364,7 @@ export default function LessonPlannerPage() {
   const [plan,        setPlan]        = useState(null);
   const [saving,      setSaving]      = useState(false);
   const [saved,       setSaved]       = useState(false);
+  const [editing,     setEditing]     = useState(false);  // back on the form but keep the last plan
   const [savedPlans,  setSavedPlans]  = useState([]);
   const [plansLoading,setPlansLoading]= useState(false);
   const rightRef = useRef(null);
@@ -398,6 +399,7 @@ export default function LessonPlannerPage() {
 
   const handleGenerate = async () => {
     if (!chapter) return;
+    setEditing(false);
     setGenerating(true);
     setPlan(null);
     setSaved(false);
@@ -452,6 +454,9 @@ export default function LessonPlannerPage() {
     await fetch(`${API}/api/v1/lesson-plans/${id}`, { method: "DELETE", headers });
     setSavedPlans(p => p.filter(x => x.lesson_plan_id !== id));
   };
+
+  // idea-3: return to the form but KEEP the last plan + inputs, so the user can jump back to the result
+  const backToEdit = () => setEditing(true);
 
   const addObjective   = () => setObjectives(o => [...o, ""]);
   const updateObjective = (i, v) => setObjectives(o => o.map((x, j) => j === i ? v : x));
@@ -515,19 +520,59 @@ export default function LessonPlannerPage() {
             <SavedPlans
               plans={savedPlans}
               onDelete={handleDelete}
-              onLoad={p => { setPlan(p); setSaved(true); setTab("create"); }}
+              onLoad={p => { setPlan(p); setSaved(true); setEditing(false); setTab("create"); }}
             />
           )}
         </div>
       )}
 
-      {/* ── Create Tab — two-column layout ─────────────────────────── */}
+      {/* ── Create Tab — two-step flow (idea-3) ──────────────────────── */}
       {tab === "create" && (
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        generating ? (
+          /* STEP 2a — full-width AI generating */
+          <div className="max-w-4xl mx-auto bg-white rounded-2xl overflow-hidden"
+            style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+            <GeneratingAnimation />
+          </div>
+        ) : plan && !editing ? (
+          /* STEP 2b — full-width result with a back-to-edit button */
+          <div className="max-w-4xl mx-auto space-y-4" ref={rightRef}>
+            <button onClick={backToEdit}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-all"
+              style={{ background: "white", color: "#6366F1", border: "1px solid #E2E8F0" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "#EEF2FF"; e.currentTarget.style.borderColor = "#C7D2FE"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "white"; e.currentTarget.style.borderColor = "#E2E8F0"; }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to edit inputs
+            </button>
+            <div className="bg-white rounded-2xl p-6" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+              <PlanDisplay plan={plan} onSave={handleSave} saving={saving} saved={saved} />
+            </div>
+          </div>
+        ) : (
+          /* STEP 1 — centered input form (full attention, no cramped column) */
+          <div className="max-w-2xl mx-auto bg-white rounded-2xl p-6 space-y-5"
+            style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
 
-          {/* LEFT — Input form */}
-          <div className="lg:col-span-2 bg-white rounded-2xl p-6 space-y-5"
-            style={{ border: "1px solid rgba(99,102,241,0.1)", position: "sticky", top: "80px" }}>
+            {/* Jump back to the last generated plan without regenerating */}
+            {plan && (
+              <button onClick={() => setEditing(false)}
+                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-all"
+                style={{ background: "#EEF2FF", color: "#6366F1", border: "1px solid #C7D2FE" }}
+                onMouseEnter={e => e.currentTarget.style.background = "#E0E7FF"}
+                onMouseLeave={e => e.currentTarget.style.background = "#EEF2FF"}>
+                <span>✨ Your last generated plan is ready</span>
+                <span className="flex items-center gap-1">
+                  View result
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
+              </button>
+            )}
+
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="w-7 h-7 rounded-lg ai-gradient flex items-center justify-center">
@@ -661,38 +706,7 @@ export default function LessonPlannerPage() {
               )}
             </button>
           </div>
-
-          {/* RIGHT — Generated plan */}
-          <div className="lg:col-span-3" ref={rightRef}>
-            {generating ? (
-              <div className="bg-white rounded-2xl overflow-hidden"
-                style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
-                <GeneratingAnimation />
-              </div>
-            ) : plan ? (
-              <div className="bg-white rounded-2xl p-6 overflow-y-auto"
-                style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
-                <PlanDisplay plan={plan} onSave={handleSave} saving={saving} saved={saved} />
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl flex flex-col items-center justify-center min-h-[500px]"
-                style={{ border: "1.5px dashed #C7D2FE" }}>
-                <div className="w-16 h-16 rounded-2xl ai-gradient flex items-center justify-center mb-4 opacity-60">
-                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                      d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                  </svg>
-                </div>
-                <p className="text-base font-semibold mb-1" style={{ color: "#94A3B8", fontFamily: "var(--font-space-grotesk)" }}>
-                  Your lesson plan will appear here
-                </p>
-                <p className="text-sm" style={{ color: "#CBD5E1" }}>
-                  Select a chapter and click Generate
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
+        )
       )}
     </div>
   );

@@ -186,7 +186,7 @@ function GeneratingStep({ config }) {
 /* ─── Question Card ───────────────────────────────────────── */
 function QuestionCard({ question, index }) {
   // Normalise whatever shape Node.js returns
-  const text    = question.question ?? question.q ?? question.text ?? `Question ${index + 1}`;
+  const text    = question.question ?? question.q ?? question.questionText ?? `Question ${index + 1}`;
   const options = question.options ?? question.opts ?? question.choices ?? [];
   const answer  = question.answer ?? question.ans ?? question.correctAnswer ?? question.correct_answer ?? null;
   const marks   = question.marks ?? question.maxMarks ?? question.max_marks ?? null;

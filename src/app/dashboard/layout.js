@@ -24,7 +24,7 @@ function DashboardShell({ children }) {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-bg min-h-screen">
+      <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0f172a] min-h-screen">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-text-lighter">Loading dashboard...</p>
@@ -34,7 +34,7 @@ function DashboardShell({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-bg">
+    <div className="flex min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e1b4b] to-[#0f172a]">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
