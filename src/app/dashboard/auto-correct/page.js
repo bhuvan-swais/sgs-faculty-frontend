@@ -7,9 +7,6 @@ function getToken() {
   return typeof window !== "undefined" ? localStorage.getItem("swais_faculty_token") : null;
 }
 
-// Questions come from a real source once wired — no mock data
-const QUESTIONS = [];
-
 const GRADE_STYLE = {
   "A+": { color: "#10B981", bg: "#ECFDF5" },
   "A":  { color: "#10B981", bg: "#ECFDF5" },
@@ -36,6 +33,40 @@ export default function AutoCorrectPage() {
   const [results,       setResults]       = useState(null);
   const [students,      setStudents]      = useState([]);
   const [topics,        setTopics]        = useState([]);
+  const [questions,     setQuestions]     = useState([]);   // extracted from an uploaded PDF
+  const [uploading,     setUploading]     = useState(false);
+  const [uploadError,   setUploadError]   = useState("");
+
+  const handleUploadPdf = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError("");
+    const token = getToken();
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API}/api/v1/questions/extract`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.detail || `HTTP ${res.status}`);
+      if (!data.questions?.length) {
+        setQuestions([]);
+        setUploadError("No questions found in that PDF. Try a text-based (not scanned) paper.");
+      } else {
+        setQuestions(data.questions);
+      }
+    } catch (err) {
+      setQuestions([]);
+      setUploadError(err.message || "Couldn't read the PDF. Please try again.");
+    } finally {
+      setUploading(false);
+      e.target.value = "";   // allow re-uploading the same file
+    }
+  };
 
   // Load real students + chapters from the API (no mock data)
   useEffect(() => {
@@ -51,7 +82,7 @@ export default function AutoCorrectPage() {
       .catch(() => setTopics([]));
   }, []);
 
-  const totalMarks = QUESTIONS.reduce((s, q) => s + q.maxMarks, 0);
+  const totalMarks = questions.reduce((s, q) => s + q.maxMarks, 0);
 
   const handleAnswerChange = (qId, val) => {
     setAnswers(prev => ({ ...prev, [qId]: val }));
@@ -62,7 +93,7 @@ export default function AutoCorrectPage() {
     try {
       const token = getToken();
       const corrected = await Promise.all(
-        QUESTIONS.map(async (q) => {
+        questions.map(async (q) => {
           try {
             const res = await fetch(`${API}/api/v1/corrections/check`, {
               method: "POST",
@@ -212,18 +243,43 @@ export default function AutoCorrectPage() {
             </div>
           )}
 
-          <div className="p-4 rounded-xl" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
-            <p className="text-xs font-semibold mb-2" style={{ color: "#64748B" }}>
-              Questions for: <span style={{ color: "#6366F1" }}>{selectedTopic}</span>
-            </p>
-            <p className="text-xs" style={{ color: "#94A3B8" }}>
-              {QUESTIONS.length > 0
-                ? `${QUESTIONS.length} questions · ${totalMarks} total marks`
-                : "No questions available — a question source needs to be connected."}
-            </p>
+          {/* Upload question paper (PDF) */}
+          <div>
+            <label className="text-xs font-semibold block mb-2" style={{ color: "#64748B" }}>Question Paper (PDF)</label>
+            <label className="flex items-center justify-center gap-2 w-full py-4 rounded-xl cursor-pointer transition-all text-sm font-semibold"
+              style={{ border: "1.5px dashed #C7D2FE", color: "#6366F1", background: "#F8FAFC" }}>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.9A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              {uploading ? "Reading PDF…" : questions.length > 0 ? "Replace question paper (PDF)" : "Upload question paper (PDF)"}
+              <input type="file" accept="application/pdf" className="hidden" onChange={handleUploadPdf} disabled={uploading} />
+            </label>
+            {uploadError && <p className="text-xs mt-2" style={{ color: "#EF4444" }}>{uploadError}</p>}
           </div>
 
-          <button onClick={() => setStep(2)} disabled={QUESTIONS.length === 0}
+          {/* Extracted questions — review & remove any mis-read ones */}
+          {questions.length > 0 && (
+            <div className="p-4 rounded-xl" style={{ background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+              <p className="text-xs font-semibold mb-2.5" style={{ color: "#64748B" }}>
+                {questions.length} question{questions.length > 1 ? "s" : ""} extracted · {totalMarks} marks
+                <span className="font-normal" style={{ color: "#94A3B8" }}> — review & remove any that look wrong</span>
+              </p>
+              <ul className="space-y-1.5 max-h-44 overflow-y-auto">
+                {questions.map((q, i) => (
+                  <li key={q.id} className="flex items-start justify-between gap-2 text-xs" style={{ color: "#475569" }}>
+                    <span className="min-w-0">
+                      <span className="font-semibold">{i + 1}.</span> {q.question}{" "}
+                      <span style={{ color: "#94A3B8" }}>({q.maxMarks})</span>
+                    </span>
+                    <button onClick={() => setQuestions(qs => qs.filter(x => x.id !== q.id))}
+                      className="shrink-0 cursor-pointer" style={{ color: "#94A3B8" }} title="Remove question">✕</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <button onClick={() => setStep(2)} disabled={questions.length === 0}
             className="w-full py-3 rounded-xl text-sm font-semibold text-white cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}>
             Start Entering Answers →
@@ -234,7 +290,7 @@ export default function AutoCorrectPage() {
       {/* Step 2: Enter Answers */}
       {step === 2 && (
         <div className="space-y-4">
-          {QUESTIONS.map((q, idx) => (
+          {questions.map((q, idx) => (
             <div key={q.id} className="bg-white rounded-2xl p-5"
               style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
               <div className="flex items-start justify-between gap-3 mb-3">
