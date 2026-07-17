@@ -170,6 +170,20 @@ export default function NoteCard({ note, onEdit, onDelete }) {
           {/* Right-side actions */}
           <div className="flex items-center gap-1">
 
+            {/* View — mobile only (hover-only edit/delete aren't reachable on touch) */}
+            <button
+              onClick={() => onEdit(note)}
+              className="md:hidden inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-primary-light text-primary"
+              aria-label={`View note: ${note.title}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              View
+            </button>
+
             {/* 🔊 Listen button */}
             {canListen && (
               <button
@@ -201,12 +215,12 @@ export default function NoteCard({ note, onEdit, onDelete }) {
               </button>
             )}
 
-            {/* Edit / Delete — visible on hover */}
+            {/* Edit / Delete — always visible (mobile shows only Delete; View handles opening) */}
             {!showDeleteConfirm ? (
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="flex items-center gap-1">
                 <button
                   onClick={() => onEdit(note)}
-                  className="p-1.5 rounded-lg text-text-lighter hover:text-primary hover:bg-primary-light transition-all duration-200"
+                  className="hidden md:inline-flex p-1.5 rounded-lg text-text-lighter hover:text-primary hover:bg-primary-light transition-all duration-200"
                   aria-label={`Edit note: ${note.title}`}
                   title="Edit note"
                 >
