@@ -69,6 +69,7 @@ const navItems = [
       </svg>
     ),
   },
+  /* Auto Correct — hidden from the menu (page & route kept intact; re-enable by uncommenting)
   {
     label: "Auto Correct",
     href: "/dashboard/auto-correct",
@@ -79,6 +80,7 @@ const navItems = [
       </svg>
     ),
   },
+  */
   {
     label: "Translator",
     href: "/dashboard/translator",

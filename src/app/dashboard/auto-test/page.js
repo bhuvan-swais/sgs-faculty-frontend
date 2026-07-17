@@ -87,7 +87,8 @@ function ConfigStep({ chapters, onGenerate }) {
                 className="py-2.5 px-2 rounded-xl text-xs font-semibold text-center transition-all cursor-pointer"
                 style={qtype === t
                   ? { background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", boxShadow: "0 4px 12px rgba(99,102,241,0.3)" }
-                  : { background: "#F8FAFC", color: "#64748B", border: "1.5px solid #E2E8F0" }}>
+                  : { background: "#F8FAFC", color: "#64748B", border: "1.5px solid #E2E8F0" }}
+                  >
                 {t}
               </button>
             ))}
@@ -400,6 +401,7 @@ export default function AutoTestPage() {
         chapterId:  cfg.chapterId,
         difficulty: cfg.difficulty,
         totalMarks: cfg.totalMarks,
+        questionType: cfg.qtype || null,   // null / omitted = all question types
       };
 
       const res = await fetch(`${API}/api/v1/question-papers/generate`, {
