@@ -121,7 +121,7 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Brand */}
         <div className="flex items-center gap-3 px-5 py-5" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
           <img
-            src="/sgs-logo.png"
+            src={`${process.env.NODE_ENV === "production" ? "/faculty" : ""}/sgs-logo.png`}
             alt="SGS Senior Secondary School"
             className="w-10 h-10 rounded-full object-cover shrink-0"
           />
