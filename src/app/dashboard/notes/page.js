@@ -14,7 +14,7 @@
  * to dispatch API calls instead of local state mutations.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNotes } from "@/context/NotesContext";
 import NoteList from "@/components/notes/NoteList";
 import NoteForm from "@/components/notes/NoteForm";
@@ -24,9 +24,25 @@ export default function NotesPage() {
   const { removeNote } = useNotes();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
+  const [initialChapter, setInitialChapter] = useState("");
+
+  // Deep-link from the chapter reader: /dashboard/notes?chapter=<title>
+  // opens the create form with that chapter pre-selected.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const chapter = params.get("chapter");
+    if (chapter) {
+      setInitialChapter(chapter);
+      setEditingNote(null);
+      setIsFormOpen(true);
+      // clean the URL so a refresh doesn't reopen the form
+      window.history.replaceState(null, "", "/dashboard/notes");
+    }
+  }, []);
 
   const handleCreateNote = () => {
     setEditingNote(null);
+    setInitialChapter("");
     setIsFormOpen(true);
   };
 
@@ -74,6 +90,7 @@ export default function NotesPage() {
         isOpen={isFormOpen}
         onClose={handleCloseForm}
         editNote={editingNote}
+        initialChapter={initialChapter}
       />
     </div>
   );

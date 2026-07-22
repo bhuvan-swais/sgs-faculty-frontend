@@ -12,7 +12,7 @@ const QTYPES = ["MCQ", "True/False", "Short Answer"];
 
 /* ─── Configure Step ──────────────────────────────────────── */
 function ConfigStep({ chapters, onGenerate }) {
-  const [chapterId,  setChapterId]  = useState(chapters[0]?.chapter_id ?? "");
+  const [chapterId,  setChapterId]  = useState("");   // "" = nothing chosen yet (forces an explicit pick)
   const [difficulty, setDifficulty] = useState("Medium");
   const [qtype,      setQtype]      = useState("");        // empty = not selected
   const [totalMarks, setTotalMarks] = useState(50);
@@ -43,11 +43,12 @@ function ConfigStep({ chapters, onGenerate }) {
         {/* Chapter */}
         <div>
           <label className="block text-sm font-semibold mb-2" style={{ color: "#374151" }}>📖 Chapter</label>
-          <select value={chapterId} onChange={e => setChapterId(Number(e.target.value))}
+          <select value={chapterId} onChange={e => setChapterId(e.target.value ? Number(e.target.value) : "")}
             className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all cursor-pointer"
             style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "#F8FAFC" }}
             onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
             onBlur={e  => { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}>
+            <option value="">-- Select a chapter --</option>
             {chapters.map(c => (
               <option key={c.chapter_id} value={c.chapter_id}>{c.content_title}</option>
             ))}

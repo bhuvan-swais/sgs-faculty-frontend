@@ -16,17 +16,28 @@
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { fetchNotes, createNote, updateNote, deleteNote, fetchChapters } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 const NotesContext = createContext(undefined);
 
 export function NotesProvider({ children }) {
+  const { user, isLoading: authLoading } = useAuth();
   const [notes, setNotes] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Load notes + chapters from backend on mount
+  // Load notes + chapters once auth has resolved (so the token exists).
+  // Re-runs when the user becomes available — fixes the mount-time token race
+  // where the first fetch fired before AuthContext stored the token.
   useEffect(() => {
+    if (authLoading) return;          // auth still resolving — wait
+    if (!user) {                      // no session — nothing to load
+      setNotes([]);
+      setChapters([]);
+      setIsLoading(false);
+      return;
+    }
     const load = async () => {
       setIsLoading(true);
       setError(null);
@@ -48,7 +59,7 @@ export function NotesProvider({ children }) {
       }
     };
     load();
-  }, []);
+  }, [user, authLoading]);
 
   /**
    * Add a new note — POST /api/v1/notes

@@ -101,7 +101,7 @@ const PEN_SIZES = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function NoteForm({ isOpen, onClose, editNote = null }) {
+export default function NoteForm({ isOpen, onClose, editNote = null, initialChapter = "", onCreated = null }) {
   const { addNote, editNote: updateNote, chapters } = useNotes();
   const toast = useToast();
   const isEditing = !!editNote;
@@ -158,7 +158,7 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
       setContentType(editNote.contentType || "typed");
     } else {
       setTitle("");
-      setChapter("");
+      setChapter(initialChapter || "");
       setContent("");
       setInputMode("voice");
       setContentType("voice");
@@ -169,7 +169,7 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
     }
     setErrors({});
     setInterimText("");
-  }, [editNote, isOpen]);
+  }, [editNote, isOpen, initialChapter]);
 
   // ── Stop listening when modal closes ──────────────────────────────────────
   useEffect(() => {
@@ -340,7 +340,11 @@ export default function NoteForm({ isOpen, onClose, editNote = null }) {
         isEditing ? "Note updated successfully" : "Note created successfully",
         isEditing ? "Updated" : "Created"
       );
-      onClose();
+      // On a successful *create*, let the caller decide what happens next
+      // (e.g. the chapter reader navigates to /dashboard/notes). Falls back
+      // to just closing when no onCreated handler is provided.
+      if (!isEditing && onCreated) onCreated();
+      else onClose();
     } catch (err) {
       console.error("Failed to save note:", err);
       toast.error("Could not save note. Please try again.", "Error");

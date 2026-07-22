@@ -145,7 +145,7 @@ function PlanDisplay({ plan, onSave, saving, saved }) {
               </h3>
             </div>
             <ul className="space-y-2">
-              {plan.objectives.map((obj, i) => (
+              {(plan.objectives || []).map((obj, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "#374151" }}>
                   <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
                     style={{ background: "#6366F1" }}>{i + 1}</span>
@@ -164,7 +164,7 @@ function PlanDisplay({ plan, onSave, saving, saved }) {
               </h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {plan.materials.map((m, i) => (
+              {(plan.materials || []).map((m, i) => (
                 <span key={i} className="px-3 py-1 rounded-full text-xs font-medium"
                   style={{ background: "white", color: "#047857", border: "1px solid #BBF7D0" }}>
                   {m}
@@ -195,7 +195,7 @@ function PlanDisplay({ plan, onSave, saving, saved }) {
               </h3>
             </div>
             <div className="space-y-3">
-              {plan.plan_sections.map((sec, i) => {
+              {(plan.plan_sections || []).map((sec, i) => {
                 const c = SECTION_COLORS[i % SECTION_COLORS.length];
                 return (
                   <div key={i} className="rounded-xl p-4" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
@@ -515,7 +515,7 @@ export default function LessonPlannerPage() {
             <SavedPlans
               plans={savedPlans}
               onDelete={handleDelete}
-              onLoad={p => { setPlan(p); setSaved(true); setEditing(false); setTab("create"); }}
+              onLoad={p => { setPlan(p.plan || p); setSaved(true); setEditing(false); setTab("create"); }}
             />
           )}
         </div>

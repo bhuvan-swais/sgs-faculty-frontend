@@ -203,6 +203,13 @@ export async function fetchChapters() {
 }
 
 /**
+ * Fetch a single chapter's full text — GET /api/v1/chapters/:id
+ */
+export async function fetchChapterDetail(chapterId) {
+  return request(`/api/v1/chapters/${chapterId}`);
+}
+
+/**
  * Fetch teacher profile from stored login data (no extra API call needed).
  * Profile is already returned at login and stored in AuthContext.
  */
