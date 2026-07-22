@@ -48,7 +48,7 @@ export default function ChapterReaderPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5 animate-fade-in">
       {/* Back */}
-      <Link href="/dashboard/chapters"
+      <Link href="/dashboard/notes?tab=chapters"
         className="inline-flex items-center gap-2 text-sm font-semibold"
         style={{ color: "#6366F1" }}>
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,7 +65,7 @@ export default function ChapterReaderPage() {
       ) : error || !chapter ? (
         <div className="text-center py-20 bg-white rounded-2xl" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
           <p className="text-sm font-medium" style={{ color: "#94A3B8" }}>{error || "Chapter not found."}</p>
-          <Link href="/dashboard/chapters" className="inline-block mt-3 text-sm font-semibold" style={{ color: "#6366F1" }}>
+          <Link href="/dashboard/notes?tab=chapters" className="inline-block mt-3 text-sm font-semibold" style={{ color: "#6366F1" }}>
             Back to chapters
           </Link>
         </div>
@@ -125,7 +125,7 @@ export default function ChapterReaderPage() {
         isOpen={notesOpen}
         onClose={() => setNotesOpen(false)}
         initialChapter={chapterLabel}
-        onCreated={() => { setNotesOpen(false); router.push("/dashboard/notes"); }}
+        onCreated={() => { setNotesOpen(false); router.push("/dashboard/notes?tab=notes"); }}
       />
     </div>
   );
