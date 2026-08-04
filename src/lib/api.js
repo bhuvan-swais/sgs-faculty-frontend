@@ -209,6 +209,78 @@ export async function fetchChapterDetail(chapterId) {
   return request(`/api/v1/chapters/${chapterId}`);
 }
 
+// ── Classes / subjects (cascading selection) ─────────────────────────────────
+
+/** GET /api/v1/classes */
+export async function fetchClasses() {
+  const data = await request("/api/v1/classes");
+  return data.classes;
+}
+
+/** GET /api/v1/subjects?class_id= */
+export async function fetchSubjects(classId) {
+  const qs = classId ? `?class_id=${classId}` : "";
+  const data = await request(`/api/v1/subjects${qs}`);
+  return data.subjects;
+}
+
+/** GET /api/v1/chapters?subject_id= */
+export async function fetchChaptersBySubject(subjectId) {
+  const data = await request(`/api/v1/chapters?subject_id=${subjectId}`);
+  return data.chapters;
+}
+
+// ── Chapter study material (PDFs) ────────────────────────────────────────────
+
+/** GET /api/v1/chapters/:id/files */
+export async function fetchChapterFiles(chapterId) {
+  const data = await request(`/api/v1/chapters/${chapterId}/files`);
+  return data.files;
+}
+
+/**
+ * Upload / replace a study-material PDF. Uses multipart, so the Content-Type
+ * header is left to the browser (it must set the multipart boundary).
+ */
+async function uploadRequest(path, file, method = "POST") {
+  const token = getToken();
+  const body = new FormData();
+  body.append("file", file);
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body,
+  });
+
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const b = await res.json();
+      detail = b.detail || detail;
+    } catch { /* ignore */ }
+    const err = new Error(detail);
+    err.status = res.status;
+    throw err;
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+/** POST /api/v1/chapters/:id/files */
+export async function uploadChapterFile(chapterId, file) {
+  return uploadRequest(`/api/v1/chapters/${chapterId}/files`, file, "POST");
+}
+
+/** PUT /api/v1/chapters/files/:fileId — replaces, old copy kept as Inactive */
+export async function replaceChapterFile(fileId, file) {
+  return uploadRequest(`/api/v1/chapters/files/${fileId}`, file, "PUT");
+}
+
+/** DELETE /api/v1/chapters/files/:fileId — soft delete */
+export async function deleteChapterFile(fileId) {
+  return request(`/api/v1/chapters/files/${fileId}`, { method: "DELETE" });
+}
+
 /**
  * Fetch teacher profile from stored login data (no extra API call needed).
  * Profile is already returned at login and stored in AuthContext.

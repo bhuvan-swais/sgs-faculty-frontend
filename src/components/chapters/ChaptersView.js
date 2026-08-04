@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchChapters } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import StudyMaterial from "@/components/chapters/StudyMaterial";
 
 export default function ChaptersView() {
   const { user, isLoading: authLoading } = useAuth();
@@ -36,19 +37,21 @@ export default function ChaptersView() {
     load();
   }, [user, authLoading]);
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-28 rounded-2xl bg-white animate-pulse" style={{ border: "1px solid rgba(99,102,241,0.1)" }} />
-        ))}
-      </div>
-    );
-  }
+  // The chapter list below the study-material panel, which always stays mounted.
+  const renderChapters = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-28 rounded-2xl bg-white animate-pulse" style={{ border: "1px solid rgba(99,102,241,0.1)" }} />
+          ))}
+        </div>
+      );
+    }
 
-  if (chapters.length === 0) {
-    return (
-      <div className="text-center py-20 bg-white rounded-2xl" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
+    if (chapters.length === 0) {
+      return (
+        <div className="text-center py-20 bg-white rounded-2xl" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
         <div className="w-16 h-16 rounded-2xl ai-gradient flex items-center justify-center mx-auto mb-4 opacity-40">
           <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13" />
@@ -61,10 +64,10 @@ export default function ChaptersView() {
           {error ? "Please try again shortly." : "Chapters added by the school will appear here."}
         </p>
       </div>
-    );
-  }
+      );
+    }
 
-  return (
+    return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {chapters.map((ch) => {
         const title = ch.content_title || ch.chapter_name || `Chapter ${ch.chapter_id}`;
@@ -100,6 +103,14 @@ export default function ChaptersView() {
           </Link>
         );
       })}
+    </div>
+    );
+  };
+
+  return (
+    <div>
+      <StudyMaterial />
+      {renderChapters()}
     </div>
   );
 }

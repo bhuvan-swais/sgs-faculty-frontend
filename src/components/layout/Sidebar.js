@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const navItems = [
   {
@@ -105,6 +108,15 @@ const navItems = [
 
 export default function Sidebar({ isOpen, onClose }) {
   const pathname = usePathname();
+  const { logout } = useAuth();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await logout();
+    window.location.href = "https://staging.sgs.swais.in";
+  };
 
   return (
     <>
@@ -194,8 +206,77 @@ export default function Sidebar({ isOpen, onClose }) {
               <p className="text-[9px]" style={{ color: "#475569" }}>Powered by SWAIS Intelligence</p>
             </div>
           </div>
+
+          <button
+            onClick={() => setShowLogoutConfirm(true)}
+            className="w-full mt-3 flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all duration-200"
+            style={{ color: "#94A3B8" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(239,68,68,0.12)"; e.currentTarget.style.color = "#FCA5A5"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#94A3B8"; }}
+          >
+            <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Sign out</span>
+          </button>
         </div>
       </aside>
+
+      {/* Logout confirmation — rendered via portal so the sidebar's transform
+          doesn't hijack the fixed positioning */}
+      {showLogoutConfirm && createPortal(
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+          style={{ background: "rgba(15,23,42,0.55)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+          onClick={() => !loggingOut && setShowLogoutConfirm(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+            style={{ background: "#FFFFFF", border: "1px solid rgba(99,102,241,0.1)" }}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="sidebar-logout-title"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#FEF2F2" }}>
+                <svg className="w-5 h-5" fill="none" stroke="#EF4444" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <h2 id="sidebar-logout-title" className="text-base font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+                Sign out?
+              </h2>
+            </div>
+            <p className="text-sm mb-5" style={{ color: "#64748B" }}>
+              You will be signed out and taken back to the SGS Portal login page.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                disabled={loggingOut}
+                className="px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-all"
+                style={{ color: "#64748B", background: "#F1F5F9" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#E2E8F0"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#F1F5F9"; }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer transition-all"
+                style={{ color: "#FFFFFF", background: "#EF4444", opacity: loggingOut ? 0.7 : 1 }}
+                onMouseEnter={e => { if (!loggingOut) e.currentTarget.style.background = "#DC2626"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "#EF4444"; }}
+              >
+                {loggingOut ? "Signing out..." : "Yes, Sign Out"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
