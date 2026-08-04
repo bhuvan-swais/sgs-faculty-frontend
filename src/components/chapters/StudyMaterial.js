@@ -25,6 +25,40 @@ const selectStyle = {
   color: "#0F172A",
 };
 
+/**
+ * Shows a dropdown only when there is a real choice to make. With a single
+ * option it renders as a read-only label (already selected), and it becomes a
+ * dropdown by itself as soon as a second class/subject is added to the data.
+ */
+function PickerField({ label, options, value, onChange, disabled, placeholder, getId, getLabel }) {
+  if (!disabled && options.length === 1) {
+    return (
+      <div
+        className="w-full px-3 py-2.5 rounded-xl text-sm flex items-center gap-2"
+        style={{ ...selectStyle, background: "#F8FAFC" }}
+        title={`Only one ${label.toLowerCase()} available`}
+      >
+        <span className="truncate" style={{ color: "#0F172A" }}>{getLabel(options[0])}</span>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      disabled={disabled}
+      className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+      style={selectStyle}
+    >
+      <option value="">{placeholder}</option>
+      {options.map(o => (
+        <option key={getId(o)} value={getId(o)}>{getLabel(o)}</option>
+      ))}
+    </select>
+  );
+}
+
 function formatDate(value) {
   if (!value) return "";
   const d = new Date(value);
@@ -49,10 +83,15 @@ export default function StudyMaterial() {
   const replaceRef = useRef(null);
   const replaceTarget = useRef(null);
 
-  // Classes on mount
+  // Classes on mount — with only one class there is nothing to choose, so
+  // select it straight away (the same applies to subjects below).
   useEffect(() => {
     fetchClasses()
-      .then(d => setClasses(Array.isArray(d) ? d : []))
+      .then(d => {
+        const list = Array.isArray(d) ? d : [];
+        setClasses(list);
+        if (list.length === 1) setClassId(String(list[0].class_id));
+      })
       .catch(() => setClasses([]));
   }, []);
 
@@ -63,7 +102,11 @@ export default function StudyMaterial() {
     setFiles([]);
     if (!classId) return;
     fetchSubjects(classId)
-      .then(d => setSubjects(Array.isArray(d) ? d : []))
+      .then(d => {
+        const list = Array.isArray(d) ? d : [];
+        setSubjects(list);
+        if (list.length === 1) setSubjectId(String(list[0].subject_id));
+      })
       .catch(() => setSubjects([]));
   }, [classId]);
 
@@ -73,7 +116,11 @@ export default function StudyMaterial() {
     setFiles([]);
     if (!subjectId) return;
     fetchChaptersBySubject(subjectId)
-      .then(d => setChapters(Array.isArray(d) ? d : []))
+      .then(d => {
+        const list = Array.isArray(d) ? d : [];
+        setChapters(list);
+        if (list.length === 1) setChapterId(String(list[0].chapter_id));
+      })
       .catch(() => setChapters([]));
   }, [subjectId]);
 
@@ -163,55 +210,45 @@ export default function StudyMaterial() {
         </h2>
       </div>
       <p className="text-xs mb-4 pl-10" style={{ color: "#94A3B8" }}>
-        Upload chapter PDFs — pick a class, subject and chapter
+        Upload chapter study material — any file type
       </p>
 
       {/* Cascading selection */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <select
+        <PickerField
+          label="Class"
+          options={classes}
           value={classId}
-          onChange={e => setClassId(e.target.value)}
-          className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer"
-          style={selectStyle}
-        >
-          <option value="">Select class</option>
-          {classes.map(c => (
-            <option key={c.class_id} value={c.class_id}>{c.label || c.class_name}</option>
-          ))}
-        </select>
-
-        <select
+          onChange={setClassId}
+          placeholder="Select class"
+          getId={c => c.class_id}
+          getLabel={c => c.label || c.class_name}
+        />
+        <PickerField
+          label="Subject"
+          options={subjects}
           value={subjectId}
-          onChange={e => setSubjectId(e.target.value)}
+          onChange={setSubjectId}
           disabled={!classId}
-          className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          style={selectStyle}
-        >
-          <option value="">{classId ? "Select subject" : "Select class first"}</option>
-          {subjects.map(s => (
-            <option key={s.subject_id} value={s.subject_id}>{s.subject_name}</option>
-          ))}
-        </select>
-
-        <select
+          placeholder={classId ? "Select subject" : "Select class first"}
+          getId={s => s.subject_id}
+          getLabel={s => s.subject_name}
+        />
+        <PickerField
+          label="Chapter"
+          options={chapters}
           value={chapterId}
-          onChange={e => setChapterId(e.target.value)}
+          onChange={setChapterId}
           disabled={!subjectId}
-          className="w-full px-3 py-2.5 rounded-xl text-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-          style={selectStyle}
-        >
-          <option value="">{subjectId ? "Select chapter" : "Select subject first"}</option>
-          {chapters.map(ch => (
-            <option key={ch.chapter_id} value={ch.chapter_id}>
-              {ch.content_title || ch.chapter_name}
-            </option>
-          ))}
-        </select>
+          placeholder={subjectId ? "Select chapter" : "Select subject first"}
+          getId={ch => ch.chapter_id}
+          getLabel={ch => ch.content_title || ch.chapter_name}
+        />
       </div>
 
-      {/* Hidden inputs */}
-      <input ref={uploadRef} type="file" accept="application/pdf" className="hidden" onChange={handleUpload} />
-      <input ref={replaceRef} type="file" accept="application/pdf" className="hidden" onChange={handleReplace} />
+      {/* Hidden inputs — any file type is allowed */}
+      <input ref={uploadRef} type="file" className="hidden" onChange={handleUpload} />
+      <input ref={replaceRef} type="file" className="hidden" onChange={handleReplace} />
 
       {message && (
         <div
@@ -228,7 +265,7 @@ export default function StudyMaterial() {
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-xs font-semibold" style={{ color: "#64748B" }}>
           {!chapterId
-            ? "Select a chapter to upload or view its PDFs"
+            ? "Select a chapter to upload or view its files"
             : filesLoading
               ? "Loading files…"
               : `${files.length} file${files.length === 1 ? "" : "s"} in this chapter`}
@@ -237,14 +274,14 @@ export default function StudyMaterial() {
           type="button"
           onClick={() => uploadRef.current?.click()}
           disabled={!chapterId || busy === "upload"}
-          title={chapterId ? "Upload a PDF for this chapter" : "Select a class, subject and chapter first"}
+          title={chapterId ? "Upload a file for this chapter" : "Select a class, subject and chapter first"}
           className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white shrink-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed enabled:cursor-pointer"
           style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)" }}
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
-          {busy === "upload" ? "Uploading…" : "Upload PDF"}
+          {busy === "upload" ? "Uploading…" : "Upload file"}
         </button>
       </div>
 
@@ -255,7 +292,7 @@ export default function StudyMaterial() {
           {!filesLoading && files.length === 0 && (
             <div className="text-center py-8 rounded-xl" style={{ background: "#F8FAFC" }}>
               <p className="text-sm font-medium" style={{ color: "#94A3B8" }}>No study material yet.</p>
-              <p className="text-xs mt-1" style={{ color: "#CBD5E1" }}>Upload a PDF to get started.</p>
+              <p className="text-xs mt-1" style={{ color: "#CBD5E1" }}>Upload a file to get started.</p>
             </div>
           )}
 

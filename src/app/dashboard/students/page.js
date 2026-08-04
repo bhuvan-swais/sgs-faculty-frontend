@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -205,6 +205,8 @@ function AssignModal({ students, onClose, onSuccess }) {
   const [subjects, setSubjects] = useState([]);
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState("");
+  const [attachment, setAttachment] = useState(null);   // optional — any file type
+  const attachRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
@@ -231,6 +233,25 @@ function AssignModal({ students, onClose, onSuccess }) {
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const created = await res.json();
+
+      // Attachment is optional — only uploaded when the teacher picked a file.
+      // A failed upload must not lose the assignment that was just created.
+      if (attachment && created?.assignment_id) {
+        try {
+          const body = new FormData();
+          body.append("file", attachment);
+          const up = await fetch(`${API}/api/v1/assignments/${created.assignment_id}/files`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body,
+          });
+          if (!up.ok) throw new Error(`HTTP ${up.status}`);
+        } catch {
+          setError("Assignment created, but the attachment could not be uploaded.");
+        }
+      }
+
       setDone(true);
       if (onSuccess) onSuccess();
     } catch {
@@ -373,6 +394,43 @@ function AssignModal({ students, onClose, onSuccess }) {
                     onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
                     onBlur={e  => { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}
                   />
+                </div>
+
+                {/* Attachment — optional, any file type */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>
+                    Attachment (optional)
+                  </label>
+                  <input
+                    ref={attachRef}
+                    type="file"
+                    className="hidden"
+                    onChange={e => setAttachment(e.target.files?.[0] || null)}
+                  />
+                  {attachment ? (
+                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl"
+                      style={{ border: "1.5px solid #E2E8F0", background: "#F8FAFC" }}>
+                      <span className="text-sm truncate" style={{ color: "#0F172A" }}>{attachment.name}</span>
+                      <button type="button"
+                        onClick={() => { setAttachment(null); if (attachRef.current) attachRef.current.value = ""; }}
+                        className="text-xs font-semibold cursor-pointer shrink-0"
+                        style={{ color: "#EF4444" }}>
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button"
+                      onClick={() => attachRef.current?.click()}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm rounded-xl cursor-pointer transition-all"
+                      style={{ border: "1.5px dashed #E2E8F0", color: "#64748B", background: "white" }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.color = "#6366F1"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "#E2E8F0"; e.currentTarget.style.color = "#64748B"; }}>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                      </svg>
+                      Attach worksheet or PDF
+                    </button>
+                  )}
                 </div>
               </div>
 
