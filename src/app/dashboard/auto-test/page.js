@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import ChapterPicker from "@/components/chapters/ChapterPicker";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 function getToken() {
@@ -11,13 +12,12 @@ const DIFFICULTIES = ["Easy", "Medium", "Hard"];
 const QTYPES = ["MCQ", "True/False", "Short Answer"];
 
 /* ─── Configure Step ──────────────────────────────────────── */
-function ConfigStep({ chapters, onGenerate }) {
-  const [chapterId,  setChapterId]  = useState("");   // "" = nothing chosen yet (forces an explicit pick)
-  const [difficulty, setDifficulty] = useState("Medium");
-  const [qtype,      setQtype]      = useState("");        // empty = not selected
-  const [totalMarks, setTotalMarks] = useState(50);
-
-  const selectedChapter = chapters.find(c => c.chapter_id === chapterId);
+function ConfigStep({ onGenerate }) {
+  const [chapterId,   setChapterId]   = useState("");
+  const [chapterName, setChapterName] = useState("");
+  const [difficulty,  setDifficulty]  = useState("Medium");
+  const [qtype,       setQtype]       = useState("");
+  const [totalMarks,  setTotalMarks]  = useState(50);
 
   return (
     <div className="bg-white rounded-2xl p-8 shadow-sm max-w-xl mx-auto"
@@ -42,17 +42,8 @@ function ConfigStep({ chapters, onGenerate }) {
 
         {/* Chapter */}
         <div>
-          <label className="block text-sm font-semibold mb-2" style={{ color: "#374151" }}>📖 Chapter</label>
-          <select value={chapterId} onChange={e => setChapterId(e.target.value ? Number(e.target.value) : "")}
-            className="w-full px-4 py-2.5 rounded-xl text-sm focus:outline-none transition-all cursor-pointer"
-            style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "#F8FAFC" }}
-            onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
-            onBlur={e  => { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}>
-            <option value="">-- Select a chapter --</option>
-            {chapters.map(c => (
-              <option key={c.chapter_id} value={c.chapter_id}>{c.content_title}</option>
-            ))}
-          </select>
+          <label className="block text-sm font-semibold mb-2" style={{ color: "#374151" }}>📖 Class / Subject / Chapter</label>
+          <ChapterPicker onChapterChange={(id, name) => { setChapterId(id); setChapterName(name); }} />
         </div>
 
         {/* Difficulty */}
@@ -127,13 +118,13 @@ function ConfigStep({ chapters, onGenerate }) {
             <p className="text-xs mt-0.5" style={{ color: "#64748B" }}>
               <span className="font-semibold">{difficulty}</span> · {totalMarks} marks ·{" "}
               <span className="font-semibold">{qtype || "All question types"}</span> ·{" "}
-              {selectedChapter?.chapter_name || "Selected chapter"}
+              {chapterName || "Selected chapter"}
             </p>
           </div>
         </div>
 
         <button
-          onClick={() => onGenerate({ chapterId, chapterName: selectedChapter?.content_title || "", difficulty, totalMarks, qtype })}
+          onClick={() => onGenerate({ chapterId, chapterName, difficulty, totalMarks, qtype })}
           disabled={!chapterId}
           className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer ai-gradient hover:opacity-90 active:scale-[0.98] disabled:opacity-50"
           style={{ boxShadow: "0 4px 16px rgba(99,102,241,0.35)" }}>
@@ -379,17 +370,6 @@ export default function AutoTestPage() {
   const [questions,   setQuestions]   = useState([]);
   const [rawResponse, setRawResponse] = useState(null);
   const [error,       setError]       = useState("");
-  const [chapters,    setChapters]    = useState([]);
-
-  useEffect(() => {
-    const token = getToken();
-    fetch(`${API}/api/v1/chapters`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(r => r.json())
-      .then(d => { if (d?.chapters?.length) setChapters(d.chapters); })
-      .catch(() => {});
-  }, []);
 
   const handleGenerate = async (cfg) => {
     setConfig(cfg);
@@ -426,7 +406,7 @@ export default function AutoTestPage() {
         Array.isArray(data?.question_paper)          ? data.question_paper :
         null;
 
-      setRawResponse(qs ? null : data);
+      setRawResponse(qs ? null : (typeof data?.questionPaper === "string" ? data.questionPaper : data));
       setQuestions(qs ?? []);
       setStep(2);
     } catch (err) {
@@ -498,7 +478,7 @@ export default function AutoTestPage() {
         </div>
       )}
 
-      {step === 0 && <ConfigStep chapters={chapters} onGenerate={handleGenerate} />}
+      {step === 0 && <ConfigStep onGenerate={handleGenerate} />}
       {step === 1 && <GeneratingStep config={config} />}
       {step === 2 && (
         <PreviewStep

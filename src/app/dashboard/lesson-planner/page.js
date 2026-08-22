@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import ChapterPicker from "@/components/chapters/ChapterPicker";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -353,8 +354,8 @@ function SavedPlans({ plans, onDelete, onLoad }) {
 /* ── Main Page ──────────────────────────────────────────────────────── */
 export default function LessonPlannerPage() {
   const [tab,         setTab]         = useState("create");   // "create" | "saved"
-  const [chapters,    setChapters]    = useState([]);
   const [chapter,     setChapter]     = useState("");
+  const [chapterName, setChapterName] = useState("");
   const [topic,       setTopic]       = useState("");
   const [duration,    setDuration]    = useState(45);
   const [objectives,  setObjectives]  = useState([""]);
@@ -370,21 +371,6 @@ export default function LessonPlannerPage() {
   const rightRef = useRef(null);
 
   const headers = { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" };
-
-  // Load chapters on mount from the API (no mock fallback)
-  useEffect(() => {
-    fetch(`${API}/api/v1/chapters`, { headers })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => {
-        const list = d.chapters || [];
-        setChapters(list);
-        setChapter(list[0]?.chapter_id?.toString() || "");
-      })
-      .catch(() => {
-        setChapters([]);
-        setChapter("");
-      });
-  }, []);
 
   // Load saved plans when tab switches
   useEffect(() => {
@@ -405,13 +391,12 @@ export default function LessonPlannerPage() {
     setPlan(null);
     setSaved(false);
     try {
-      const selectedChapter = chapters.find(c => c.chapter_id?.toString() === chapter?.toString());
       const res = await fetch(`${API}/api/v1/lesson-plans/generate`, {
         method: "POST",
         headers,
         body: JSON.stringify({
           chapterId: parseInt(chapter),
-          chapterName: selectedChapter?.content_title || "",
+          chapterName,
           durationMinutes: duration,
         }),
       });
@@ -582,16 +567,10 @@ export default function LessonPlannerPage() {
               <p className="text-xs ml-9" style={{ color: "#94A3B8" }}>Fill in the details below</p>
             </div>
 
-            {/* Chapter */}
+            {/* Class / Subject / Chapter */}
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Chapter *</label>
-              <select value={chapter} onChange={e => setChapter(e.target.value)}
-                className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
-                style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "white" }}
-                onFocus={e => { e.target.style.border = "1.5px solid #6366F1"; e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.1)"; }}
-                onBlur={e =>  { e.target.style.border = "1.5px solid #E2E8F0"; e.target.style.boxShadow = "none"; }}>
-                {chapters.map(c => <option key={c.chapter_id} value={c.chapter_id}>{c.content_title}</option>)}
-              </select>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Class / Subject / Chapter *</label>
+              <ChapterPicker onChapterChange={(id, name) => { setChapter(id ? String(id) : ""); setChapterName(name); }} />
             </div>
 
             {/* Topic */}
