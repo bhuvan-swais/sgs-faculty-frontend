@@ -104,185 +104,184 @@ function GeneratingAnimation() {
 }
 
 /* ── Plan display ───────────────────────────────────────────────────── */
-function PlanDisplay({ plan, onSave, saving, saved }) {
-  const titleTyped = useTypewriter(plan.title, 30, true);
-  const [visible, setVisible] = useState(false);
+/* ── Printable lesson-plan form ─────────────────────────────────────────
+   Replicates the school's paper lesson plan. Every field stays editable so a
+   teacher can correct anything the AI got wrong before printing.          */
 
+const FORM_SECTIONS = [
+  ["objectives",  "Learning objectives"],
+  ["outcomes",    "Learning outcomes"],
+  ["methodology", "Methodology"],
+  ["tlm",         "TLM"],
+  ["activities",  "Activities"],
+  ["assessment",  "Assessment"],
+  ["homework",    "Home Work"],
+];
+
+const HEADER_FIELDS = [
+  ["teacher_name",         "Name of the teacher"],
+  ["designation",          "Designation"],
+  ["class_section",        "Class & Section"],
+  ["subject",              "Subject"],
+  ["chapter",              "Chapter"],
+  ["no_of_periods",        "No. of Periods"],
+  ["date_of_commencement", "Date of Commencement"],
+  ["expected_completion",  "Expected date of completion"],
+  ["actual_completion",    "Actual date of completion"],
+];
+
+/* Items are written into the DOM once rather than rendered as JSX, because the
+   box is contentEditable — React must not own its children afterwards. */
+function EditableSection({ items }) {
+  const ref = useRef(null);
   useEffect(() => {
-    const t = setTimeout(() => setVisible(true), 600);
-    return () => clearTimeout(t);
-  }, []);
+    const el = ref.current;
+    if (!el) return;
+    el.innerHTML = "";
+    const list = items || [];
+    list.forEach((text, i) => {
+      const line = document.createElement("div");
+      line.className = "lp-item";
+      if (list.length > 1) {
+        const num = document.createElement("span");
+        num.className = "lp-num";
+        num.textContent = (i + 1) + ".";
+        line.appendChild(num);
+      }
+      line.appendChild(document.createTextNode(text));
+      el.appendChild(line);
+    });
+  }, [items]);
+
+  // Keep pasted text plain so a paste from Word doesn't drag its styling in.
+  const onPaste = e => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+    document.execCommand("insertText", false, text);
+  };
+
+  return <div ref={ref} className="lp-fill" contentEditable suppressContentEditableWarning onPaste={onPaste} />;
+}
+
+function PlanForm({ plan, onSave, saving, saved }) {
+  const sections = plan.sections || {};
+  const [header, setHeader] = useState(() => ({ ...(plan.header || {}) }));
+
+  useEffect(() => { setHeader({ ...(plan.header || {}) }); }, [plan]);
+
+  const set = (key, value) => setHeader(h => ({ ...h, [key]: value }));
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="animate-fade-in">
+      <style>{`
+        .lp-sheet { background:#fff; color:#17233a; padding:8mm 9mm 6mm; border-radius:14px;
+                    box-shadow:0 6px 24px rgba(20,30,50,.10); font-size:13px; }
+        .lp-school { width:100%; text-align:center; border:0; outline:0; background:transparent;
+                     font:800 15pt/1.2 inherit; color:#16437f; text-transform:uppercase; }
+        .lp-doctype { text-align:center; font:700 10pt/1 inherit; color:#1c56a5;
+                      letter-spacing:.22em; margin:2mm 0 4mm; }
+        .lp-head { display:grid; grid-template-columns:repeat(3,1fr); gap:2.5mm 7mm; margin-bottom:4mm; }
+        .lp-f { display:flex; align-items:baseline; gap:2mm; min-width:0; }
+        .lp-f > label { font:700 8.6pt/1 inherit; color:#1c56a5; white-space:nowrap; flex:none; }
+        .lp-f > input { flex:1; min-width:0; border:0; border-bottom:1px solid #1c56a5; outline:0;
+                        background:transparent; font:400 10pt/1.4 inherit; color:#17233a; padding:0 1mm 1px; }
+        .lp-f > input:focus { border-bottom-width:2px; background:#f3f7fd; }
+        .lp-body { display:grid; grid-template-columns:1fr 1fr; border:1.2px solid #1c56a5; }
+        .lp-col-l { border-right:1.2px solid #1c56a5; }
+        .lp-box + .lp-box { border-top:1.2px solid #1c56a5; }
+        .lp-split { display:grid; grid-template-columns:1.4fr 1fr; }
+        .lp-split > .lp-box + .lp-box { border-top:0; border-left:1.2px solid #1c56a5; }
+        .lp-lbl { font:800 8.6pt/1 inherit; color:#1c56a5; padding:1.6mm 2.5mm .8mm; }
+        .lp-fill { padding:0 2.5mm 2mm; outline:0; font-size:9.5pt; line-height:1.5;
+                   min-height:22mm; overflow-wrap:anywhere; }
+        .lp-fill:focus { background:#f3f7fd; }
+        .lp-item { padding-left:4.6mm; text-indent:-4.6mm; margin-bottom:.9mm; }
+        .lp-num { color:#1c56a5; font-weight:700; margin-right:1.4mm; }
+        .lp-signs { display:flex; justify-content:space-between; margin-top:3.5mm;
+                    font:700 9pt/1 inherit; color:#1c56a5; }
+        @page { size:A4 landscape; margin:8mm; }
+        @media print {
+          body * { visibility:hidden; }
+          .lp-sheet, .lp-sheet * { visibility:visible; }
+          .lp-sheet { position:absolute; left:0; top:0; width:100%;
+                      padding:0; border-radius:0; box-shadow:none; }
+          .lp-noprint { display:none !important; }
+          .lp-f > input, .lp-fill { background:transparent !important; }
+        }
+      `}</style>
 
-      {/* Header */}
-      <div className="rounded-2xl p-5 text-white relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6,#06B6D4)", backgroundSize: "200% 200%" }}>
-        <div className="absolute inset-0 dot-grid opacity-20" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-              style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)" }}>
-              ✨ AI Generated
-            </span>
-            <span className="text-[10px] opacity-70">{plan.duration_minutes} min · Class {plan.class_name}-{plan.section}</span>
-          </div>
-          <h2 className="text-xl font-bold leading-tight" style={{ fontFamily: "var(--font-space-grotesk)" }}>
-            {titleTyped}<span className="opacity-60 animate-pulse">|</span>
-          </h2>
-          <p className="text-sm opacity-80 mt-1">{plan.subject} · {plan.chapter_text}</p>
-        </div>
+      {/* Actions — screen only */}
+      <div className="lp-noprint flex gap-3 mb-4">
+        <button
+          onClick={onSave}
+          disabled={saving || saved}
+          className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer"
+          style={{
+            background: saved ? "#ECFDF5" : "linear-gradient(135deg,#6366F1,#8B5CF6)",
+            color: saved ? "#059669" : "white",
+            boxShadow: saved ? "none" : "0 4px 14px rgba(99,102,241,0.35)",
+          }}>
+          {saved ? "✓ Saved to My Plans" : saving ? "Saving…" : "💾 Save Plan"}
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="py-3 px-6 rounded-xl text-sm font-semibold cursor-pointer"
+          style={{ border: "1.5px solid #1c56a5", color: "#1c56a5", background: "transparent" }}>
+          🖨 Print
+        </button>
       </div>
 
-      {visible && (
-        <>
-          {/* Objectives */}
-          <div className="rounded-2xl p-5" style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">🎯</span>
-              <h3 className="text-sm font-bold" style={{ color: "#4F46E5", fontFamily: "var(--font-space-grotesk)" }}>
-                Learning Objectives
-              </h3>
-            </div>
-            <ul className="space-y-2">
-              {(plan.objectives || []).map((obj, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm" style={{ color: "#374151" }}>
-                  <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5"
-                    style={{ background: "#6366F1" }}>{i + 1}</span>
-                  {obj}
-                </li>
+      <div className="lp-sheet">
+        <input
+          className="lp-school"
+          value={header.school_name || ""}
+          placeholder="School name"
+          onChange={e => set("school_name", e.target.value)}
+        />
+        <div className="lp-doctype">LESSON PLAN</div>
+
+        <div className="lp-head">
+          {HEADER_FIELDS.map(([key, label]) => (
+            <span className="lp-f" key={key}>
+              <label>{label}</label>
+              <input value={header[key] ?? ""} onChange={e => set(key, e.target.value)} />
+            </span>
+          ))}
+        </div>
+
+        <div className="lp-body">
+          <div className="lp-col-l">
+            {["objectives", "outcomes"].map(key => (
+              <div className="lp-box" key={key}>
+                <div className="lp-lbl">{FORM_SECTIONS.find(s => s[0] === key)[1]} :</div>
+                <EditableSection items={sections[key]} />
+              </div>
+            ))}
+          </div>
+
+          <div className="lp-col-r">
+            <div className="lp-split">
+              {["methodology", "tlm"].map(key => (
+                <div className="lp-box" key={key}>
+                  <div className="lp-lbl">{FORM_SECTIONS.find(s => s[0] === key)[1]} :</div>
+                  <EditableSection items={sections[key]} />
+                </div>
               ))}
-            </ul>
-          </div>
-
-          {/* Materials */}
-          <div className="rounded-2xl p-5" style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">📦</span>
-              <h3 className="text-sm font-bold" style={{ color: "#059669", fontFamily: "var(--font-space-grotesk)" }}>
-                Materials Required
-              </h3>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {(plan.materials || []).map((m, i) => (
-                <span key={i} className="px-3 py-1 rounded-full text-xs font-medium"
-                  style={{ background: "white", color: "#047857", border: "1px solid #BBF7D0" }}>
-                  {m}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Core Concept */}
-          {plan.core_concept && (
-            <div className="rounded-2xl p-5" style={{ background: "#FFFBEB", border: "1px solid #FDE68A" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">💡</span>
-                <h3 className="text-sm font-bold" style={{ color: "#D97706", fontFamily: "var(--font-space-grotesk)" }}>
-                  Teacher&apos;s Focus Note
-                </h3>
+            {["activities", "assessment", "homework"].map(key => (
+              <div className="lp-box" key={key}>
+                <div className="lp-lbl">{FORM_SECTIONS.find(s => s[0] === key)[1]} :</div>
+                <EditableSection items={sections[key]} />
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: "#78350F" }}>{plan.core_concept}</p>
-            </div>
-          )}
-
-          {/* Lesson Flow */}
-          <div className="rounded-2xl p-5 bg-white" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg">📝</span>
-              <h3 className="text-sm font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
-                Lesson Flow
-              </h3>
-            </div>
-            <div className="space-y-3">
-              {(plan.plan_sections || []).map((sec, i) => {
-                const c = SECTION_COLORS[i % SECTION_COLORS.length];
-                return (
-                  <div key={i} className="rounded-xl p-4" style={{ background: c.bg, border: `1px solid ${c.border}` }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold" style={{ color: c.label }}>{sec.title}</span>
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded-full"
-                        style={{ background: "white", color: c.icon, border: `1px solid ${c.border}` }}>
-                        {sec.duration} min
-                      </span>
-                    </div>
-                    <p className="text-xs font-semibold mb-2" style={{ color: "#374151" }}>📌 {sec.activity}</p>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      <div className="text-[11px]" style={{ color: "#64748B" }}>
-                        <span className="font-semibold">Teacher:</span> {sec.teacher_action}
-                      </div>
-                      <div className="text-[11px]" style={{ color: "#64748B" }}>
-                        <span className="font-semibold">Students:</span> {sec.student_action}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            ))}
           </div>
+        </div>
 
-          {/* Assessment + Homework */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="rounded-2xl p-5" style={{ background: "#FDF4FF", border: "1px solid #E9D5FF" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">📊</span>
-                <h3 className="text-sm font-bold" style={{ color: "#7C3AED", fontFamily: "var(--font-space-grotesk)" }}>
-                  Assessment
-                </h3>
-              </div>
-              <p className="text-xs leading-relaxed" style={{ color: "#581C87" }}>{plan.assessment_method}</p>
-            </div>
-            <div className="rounded-2xl p-5" style={{ background: "#FFF7ED", border: "1px solid #FED7AA" }}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg">🏠</span>
-                <h3 className="text-sm font-bold" style={{ color: "#C2410C", fontFamily: "var(--font-space-grotesk)" }}>
-                  Homework
-                </h3>
-              </div>
-              <p className="text-xs leading-relaxed" style={{ color: "#7C2D12" }}>{plan.homework}</p>
-            </div>
-          </div>
-
-          {/* Differentiation */}
-          {plan.differentiation && (
-            <div className="rounded-2xl p-5 bg-white" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-lg">🌱</span>
-                <h3 className="text-sm font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
-                  Differentiation
-                </h3>
-              </div>
-              <div className="space-y-2">
-                {Object.entries(plan.differentiation).map(([key, val]) => (
-                  <div key={key} className="flex items-start gap-2">
-                    <span className="text-xs font-bold capitalize px-2 py-0.5 rounded shrink-0"
-                      style={{ background: "#EEF2FF", color: "#6366F1" }}>
-                      {key.replace(/_/g, " ")}
-                    </span>
-                    <span className="text-xs" style={{ color: "#475569" }}>{val}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-3 pb-4">
-            <button
-              onClick={onSave}
-              disabled={saving || saved}
-              className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer"
-              style={{
-                background: saved ? "#ECFDF5" : "linear-gradient(135deg,#6366F1,#8B5CF6)",
-                color: saved ? "#059669" : "white",
-                boxShadow: saved ? "none" : "0 4px 14px rgba(99,102,241,0.35)",
-              }}>
-              {saved ? "✓ Saved to My Plans" : saving ? "Saving…" : "💾 Save Plan"}
-            </button>
-          </div>
-        </>
-      )}
+        <div className="lp-signs">
+          <span>Sign. of the Teacher</span>
+          <span>Sign. of the Dean</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -323,7 +322,7 @@ function SavedPlans({ plans, onDelete, onLoad }) {
               <p className="text-sm font-semibold truncate" style={{ color: "#0F172A" }}>{p.title}</p>
             </div>
             <p className="text-xs ml-9" style={{ color: "#94A3B8" }}>
-              {p.chapter_text} · {p.duration_minutes} min ·{" "}
+              {p.chapter_text} · {p.duration_minutes} period(s) ·{" "}
               {p.created_at ? new Date(p.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}
             </p>
           </div>
@@ -357,7 +356,9 @@ export default function LessonPlannerPage() {
   const [chapter,     setChapter]     = useState("");
   const [chapterName, setChapterName] = useState("");
   const [topic,       setTopic]       = useState("");
-  const [duration,    setDuration]    = useState(45);
+  const [periods,     setPeriods]     = useState(2);
+  const [dateFrom,    setDateFrom]    = useState("");
+  const [dateTo,      setDateTo]      = useState("");
   const [objectives,  setObjectives]  = useState([""]);
   const [notes,       setNotes]       = useState("");
   const [generating,  setGenerating]  = useState(false);
@@ -396,8 +397,10 @@ export default function LessonPlannerPage() {
         headers,
         body: JSON.stringify({
           chapterId: parseInt(chapter),
-          chapterName,
-          durationMinutes: duration,
+          topic: topic || chapterName,
+          noOfPeriods: periods,
+          dateOfCommencement: dateFrom || null,
+          expectedCompletion: dateTo || null,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -528,7 +531,7 @@ export default function LessonPlannerPage() {
               Back to edit inputs
             </button>
             <div className="bg-white rounded-2xl p-6" style={{ border: "1px solid rgba(99,102,241,0.1)" }}>
-              <PlanDisplay plan={plan} onSave={handleSave} saving={saving} saved={saved} />
+              <PlanForm plan={plan} onSave={handleSave} saving={saving} saved={saved} />
             </div>
           </div>
         ) : (
@@ -587,18 +590,35 @@ export default function LessonPlannerPage() {
               />
             </div>
 
-            {/* Duration */}
+            {/* Periods — the form counts periods, not minutes */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold" style={{ color: "#475569" }}>Duration</label>
+                <label className="text-xs font-semibold" style={{ color: "#475569" }}>No. of Periods</label>
                 <span className="text-sm font-bold px-2 py-0.5 rounded-lg"
-                  style={{ background: "#EEF2FF", color: "#6366F1" }}>{duration} min</span>
+                  style={{ background: "#EEF2FF", color: "#6366F1" }}>{periods}</span>
               </div>
-              <input type="range" min={30} max={90} step={5} value={duration}
-                onChange={e => setDuration(Number(e.target.value))}
+              <input type="range" min={1} max={8} step={1} value={periods}
+                onChange={e => setPeriods(Number(e.target.value))}
                 className="w-full accent-indigo-500 cursor-pointer" />
               <div className="flex justify-between text-[10px] mt-1" style={{ color: "#94A3B8" }}>
-                <span>30 min</span><span>60 min</span><span>90 min</span>
+                <span>1</span><span>4</span><span>8</span>
+              </div>
+            </div>
+
+            {/* Dates printed in the form header. The teacher owns these —
+                left blank they simply print empty. */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "#475569" }}>Commencement</label>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ border: "1.5px solid #E2E8F0" }} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "#475569" }}>Expected completion</label>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none"
+                  style={{ border: "1.5px solid #E2E8F0" }} />
               </div>
             </div>
 
