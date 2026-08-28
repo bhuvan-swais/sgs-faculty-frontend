@@ -12,6 +12,12 @@
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
+// Where to send the user once their session ends — the login app.
+// Comes from the environment so each deployment points at its own login app.
+// The fallback is a relative path, which resolves against whatever domain this
+// app is served from, so it is never a hardcoded host.
+export const LOGIN_URL = process.env.NEXT_PUBLIC_LOGIN_URL || "/";
+
 const TOKEN_KEY = "swais_faculty_token";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -38,9 +44,7 @@ async function request(path, options = {}) {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem("swais_faculty_auth");
       if (typeof window !== "undefined") {
-        window.location.href = process.env.NODE_ENV === "development"
-          ? "/"
-          : "https://staging.sgs.swais.in";
+        window.location.href = LOGIN_URL;
       }
     }
     let detail = `HTTP ${res.status}`;

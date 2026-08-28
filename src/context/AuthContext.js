@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     async function restoreSession() {
       try {
-        // 1. Check URL for ?token= param (staging.sgs.swais.in redirects here with token)
+        // 1. Check URL for ?token= param (the login app redirects here with token)
         const params = new URLSearchParams(window.location.search);
         const urlToken = params.get("token");
         if (urlToken) {

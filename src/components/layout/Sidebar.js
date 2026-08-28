@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { LOGIN_URL } from "@/lib/api";
 
 const navItems = [
   {
@@ -115,7 +116,7 @@ export default function Sidebar({ isOpen, onClose }) {
   const handleLogout = async () => {
     setLoggingOut(true);
     await logout();
-    window.location.href = "https://staging.sgs.swais.in";
+    window.location.href = LOGIN_URL;
   };
 
   return (
