@@ -105,17 +105,10 @@ export default function ChapterReaderPage() {
             )}
           </article>
 
-          {/* Bottom Write Notes */}
-          <div className="flex justify-center pb-4">
-            <button type="button" onClick={() => setNotesOpen(true)}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer"
-              style={{ background: "linear-gradient(135deg,#6366F1,#8B5CF6)", boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Write Notes for this chapter
-            </button>
-          </div>
+          {/* There used to be a second Write Notes button here, below the
+              content. Teachers read the pair as a duplicate rather than as a
+              convenience, so only the one in the header remains — it is visible
+              without scrolling and does the same thing. */}
         </>
       )}
 

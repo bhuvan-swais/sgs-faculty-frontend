@@ -155,7 +155,7 @@ export default function AudioTranslatorPage() {
           </svg>
         </div>
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "#0F172A", fontFamily: "var(--font-space-grotesk)" }}>
+          <h1 className="text-2xl font-bold" style={{ color: "#F1F5F9", fontFamily: "var(--font-space-grotesk)" }}>
             Audio Language Translator
           </h1>
           <p className="text-sm" style={{ color: "#94A3B8" }}>

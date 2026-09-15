@@ -140,7 +140,7 @@ export default function Sidebar({ isOpen, onClose }) {
           />
           <div className="flex-1 min-w-0">
             <h1 className="text-[15px] font-bold leading-tight tracking-tight ai-gradient-text">SGS Portal</h1>
-            <p className="text-[10px] leading-tight mt-0.5" style={{ color: "#475569" }}>AI-Powered Faculty Portal</p>
+            <p className="text-[10px] leading-tight mt-0.5" style={{ color: "#94A3B8" }}>AI-Powered Faculty Portal</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg lg:hidden cursor-pointer" style={{ color: "#475569" }} aria-label="Close sidebar">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,7 +151,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto">
-          <p className="px-3 mb-3 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#334155" }}>
+          <p className="px-3 mb-3 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#94A3B8" }}>
             Main Menu
           </p>
 
@@ -164,7 +164,7 @@ export default function Sidebar({ isOpen, onClose }) {
             return (
               <div key={item.label}>
               {isFirstAI && (
-                <p className="px-3 mt-4 mb-3 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#334155" }}>
+                <p className="px-3 mt-4 mb-3 text-[9px] font-semibold uppercase tracking-widest" style={{ color: "#94A3B8" }}>
                   AI Features
                 </p>
               )}
