@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { todayISO } from "@/lib/dates";
 import ChapterPicker from "@/components/chapters/ChapterPicker";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -610,13 +611,13 @@ export default function LessonPlannerPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold block mb-1.5" style={{ color: "#475569" }}>Commencement</label>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                <input type="date" min={todayISO()} value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={{ border: "1.5px solid #E2E8F0" }} />
               </div>
               <div>
                 <label className="text-xs font-semibold block mb-1.5" style={{ color: "#475569" }}>Expected completion</label>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                <input type="date" min={dateFrom || todayISO()} value={dateTo} onChange={e => setDateTo(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
                   style={{ border: "1.5px solid #E2E8F0" }} />
               </div>

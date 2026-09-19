@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { todayISO } from "@/lib/dates";
 import { useAuth } from "@/context/AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -194,8 +195,13 @@ function NotifyModal({ student, onClose }) {
 }
 
 /* ─── Assign Homework Modal — single OR bulk ──────────────────────── */
-function AssignModal({ students, onClose, onSuccess }) {
-  // students = array (length 1 = single, >1 = bulk)
+function AssignModal({ students: initialStudents, onClose, onSuccess }) {
+  // Snapshot the list on open. onSuccess clears the parent's selection while
+  // this modal is still showing its "done" view, and that view names the
+  // students — reading the live prop after the clear crashed the page with
+  // "students[0] is undefined".
+  const [students] = useState(() => initialStudents ?? []);
+  // length 1 = single, >1 = bulk
   const isBulk = students.length > 1;
   const [title,   setTitle]   = useState("");
   const [subject, setSubject] = useState("");
@@ -279,7 +285,7 @@ function AssignModal({ students, onClose, onSuccess }) {
               <p className="text-sm" style={{ color: "#94A3B8" }}>
                 <span className="font-semibold" style={{ color: "#6366F1" }}>{title}</span> assigned to{" "}
                 <span className="font-semibold">
-                  {isBulk ? `${students.length} students` : students[0].full_name}
+                  {isBulk ? `${students.length} students` : (students[0]?.full_name ?? "the student")}
                 </span>
               </p>
               <p className="text-xs mt-1" style={{ color: "#94A3B8" }}>
@@ -372,6 +378,7 @@ function AssignModal({ students, onClose, onSuccess }) {
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Due Date *</label>
                     <input
                       type="date"
+                      min={todayISO()}
                       value={dueDate}
                       onChange={e => setDueDate(e.target.value)}
                       className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
