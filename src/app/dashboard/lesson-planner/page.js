@@ -200,6 +200,27 @@ function PlanForm({ plan, onSave, saving, saved }) {
         .lp-num { color:#1c56a5; font-weight:700; margin-right:1.4mm; }
         .lp-signs { display:flex; justify-content:space-between; margin-top:3.5mm;
                     font:700 9pt/1 inherit; color:#1c56a5; }
+        /* Phones and small tablets: the A4 landscape layout does not survive a
+           narrow screen — three header columns leave inputs a few px wide and
+           the TLM column breaks words into letters. Stack everything single
+           column and let each box grow. Print keeps the landscape form. */
+        @media screen and (max-width: 767px) {
+          .lp-sheet { padding:5mm 4mm 4mm; font-size:14px; }
+          /* An <input> can't wrap; shrink it and let it scroll rather than clip. */
+          .lp-school { font-size:11pt; line-height:1.3; text-overflow:ellipsis; }
+          .lp-head { grid-template-columns:1fr; gap:3mm; }
+          .lp-f { flex-direction:column; align-items:stretch; gap:1mm; }
+          .lp-f > label { font-size:8pt; white-space:normal; }
+          .lp-f > input { font-size:11pt; padding:1mm 1mm 1.5mm; }
+          .lp-body { grid-template-columns:1fr; }
+          .lp-col-l { border-right:0; border-bottom:1.2px solid #1c56a5; }
+          .lp-split { grid-template-columns:1fr; }
+          .lp-split > .lp-box + .lp-box { border-left:0; border-top:1.2px solid #1c56a5; }
+          .lp-lbl { font-size:9.5pt; padding:2.5mm 3mm 1mm; }
+          .lp-fill { font-size:11pt; line-height:1.55; padding:0 3mm 3mm; min-height:0; }
+          .lp-item { padding-left:6mm; text-indent:-6mm; margin-bottom:1.5mm; }
+          .lp-signs { flex-direction:column; gap:6mm; margin-top:6mm; font-size:9.5pt; }
+        }
         @page { size:A4 landscape; margin:8mm; }
         @media print {
           body * { visibility:hidden; }
