@@ -293,3 +293,39 @@ export async function fetchTeacherProfile() {
   // Profile already in localStorage via AuthContext — no need to re-fetch.
   return null;
 }
+
+/* ─── Question papers (auto test) ───────────────────────────────────────────
+   Generated papers are not stored until the teacher saves one. Saved papers
+   are what Print and "Assign to students" work from. */
+
+export async function saveQuestionPaper(paper) {
+  // paper: { title, chapterId, subject, difficulty, totalMarks, questionType, paperText | questions }
+  return request("/api/v1/question-papers", { method: "POST", body: JSON.stringify(paper) });
+}
+
+export async function fetchQuestionPapers() {
+  const data = await request("/api/v1/question-papers");
+  return data?.papers ?? [];
+}
+
+export async function fetchQuestionPaper(id) {
+  return request(`/api/v1/question-papers/${id}`);
+}
+
+export async function deleteQuestionPaper(id) {
+  return request(`/api/v1/question-papers/${id}`, { method: "DELETE" });
+}
+
+/** Turn a saved paper into an assignment for the teacher's class. */
+export async function assignQuestionPaper(paper, dueDate) {
+  return request("/api/v1/assignments", {
+    method: "POST",
+    body: JSON.stringify({
+      title: paper.title,
+      text: paper.paper_text || (Array.isArray(paper.questions)
+        ? paper.questions.map((q, i) => `${i + 1}. ${q.question ?? q.text ?? ""}`).join("\n")
+        : null),
+      due_date: dueDate,
+    }),
+  });
+}

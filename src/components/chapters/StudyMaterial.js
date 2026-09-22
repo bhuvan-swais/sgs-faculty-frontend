@@ -18,6 +18,7 @@ import {
   replaceChapterFile,
   deleteChapterFile,
 } from "@/lib/api";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
 
 const selectStyle = {
   background: "white",
@@ -183,13 +184,20 @@ export default function StudyMaterial() {
     replaceRef.current?.click();
   };
 
-  const handleDelete = async (file) => {
-    if (!confirm(`Remove "${file.file_name}" from this chapter?\n\nIt stays recoverable until the end of the academic year.`)) return;
+  // Delete is two steps: the icon sets the file to confirm, the dialog acts.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const handleDelete = (file) => setDeleteTarget(file);
+
+  const confirmDelete = async () => {
+    const file = deleteTarget;
+    if (!file) return;
     setBusy(`delete:${file.file_id}`);
     try {
       await deleteChapterFile(file.file_id);
       await loadFiles();
       notify("ok", "File removed.");
+      setDeleteTarget(null);
     } catch (err) {
       notify("err", err.message || "Delete failed.");
     } finally {
@@ -356,6 +364,16 @@ export default function StudyMaterial() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        isOpen={!!deleteTarget}
+        title="Remove this file?"
+        message={deleteTarget ? `"${deleteTarget.file_name}" will be removed from this chapter.\n\nIt stays recoverable until the end of the academic year.` : ""}
+        confirmLabel="Remove"
+        danger
+        busy={!!deleteTarget && busy === `delete:${deleteTarget.file_id}`}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

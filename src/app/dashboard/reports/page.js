@@ -238,7 +238,10 @@ export default function ReportsPage() {
   const [classAiText,     setClassAiText]     = useState(null);
   const [classAiLoading,  setClassAiLoading]  = useState(false);
 
-  const subject = report?.subject || "";
+  // The AI service treats "all" as "no subject filter" and anything else as
+  // a name to match. An empty string would be matched literally, so send the
+  // sentinel when the teacher has no subject on record.
+  const subject = report?.subject || "all";
 
   const handleClassAnalytics = async () => {
     const token = localStorage.getItem("swais_faculty_token");

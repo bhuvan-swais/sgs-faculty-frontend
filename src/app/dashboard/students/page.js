@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { todayISO } from "@/lib/dates";
 import { useAuth } from "@/context/AuthContext";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -194,11 +195,20 @@ function NotifyModal({ student, onClose }) {
 }
 
 /* ─── Assign Homework Modal — single OR bulk ──────────────────────── */
-function AssignModal({ students, onClose, onSuccess }) {
-  // students = array (length 1 = single, >1 = bulk)
+function AssignModal({ students: initialStudents, onClose, onSuccess }) {
+  // Snapshot the list on open. onSuccess clears the parent's selection while
+  // this modal is still showing its "done" view, and that view names the
+  // students — reading the live prop after the clear crashed the page with
+  // "students[0] is undefined".
+  const [students] = useState(() => initialStudents ?? []);
+  // length 1 = single, >1 = bulk
   const isBulk = students.length > 1;
   const [title,   setTitle]   = useState("");
   const [subject, setSubject] = useState("");
+  const [chapter, setChapter] = useState("");
+  const [chapters, setChapters] = useState([]);
+  // Selected students by default; the toggle sends it to the whole roll instead.
+  const [entireClass, setEntireClass] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const [desc,    setDesc]    = useState("");
   const [done,    setDone]    = useState(false);
@@ -216,6 +226,26 @@ function AssignModal({ students, onClose, onSuccess }) {
       .catch(() => setSubjects([]));
   }, []);
 
+  // Chapters follow the subject. The subject <select> clears the chapter on
+  // change (see handleSubjectChange) so a chapter from the previous subject
+  // can't be sent by mistake; this only loads the new list.
+  useEffect(() => {
+    if (!subject) return;
+    let alive = true;
+    const token = localStorage.getItem("swais_faculty_token");
+    fetch(`${API}/api/v1/chapters?subject_id=${subject}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => { if (alive) setChapters(d.chapters || []); })
+      .catch(() => { if (alive) setChapters([]); });
+    return () => { alive = false; };
+  }, [subject]);
+
+  const handleSubjectChange = (value) => {
+    setSubject(value);
+    setChapter("");
+    if (!value) setChapters([]);
+  };
+
   const handleAssign = async () => {
     if (!title.trim() || !dueDate || saving) return;
     setSaving(true);
@@ -229,10 +259,17 @@ function AssignModal({ students, onClose, onSuccess }) {
           title: title.trim(),
           text: desc || null,
           subject_id: subject ? Number(subject) : null,
+          chapter_id: chapter ? Number(chapter) : null,
           due_date: dueDate,
+          // Omitted = whole class; otherwise exactly the students in this modal.
+          ...(entireClass ? {} : { student_ids: students.map(st => st.student_id) }),
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const b = await res.json(); detail = typeof b.detail === "string" ? b.detail : (b.detail?.[0]?.msg || detail); } catch {}
+        throw new Error(detail);
+      }
       const created = await res.json();
 
       // Attachment is optional — only uploaded when the teacher picked a file.
@@ -254,8 +291,8 @@ function AssignModal({ students, onClose, onSuccess }) {
 
       setDone(true);
       if (onSuccess) onSuccess();
-    } catch {
-      setError("Couldn't create the assignment. Please try again.");
+    } catch (err) {
+      setError(err.message && !err.message.startsWith("HTTP") ? err.message : "Couldn't create the assignment. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -279,7 +316,7 @@ function AssignModal({ students, onClose, onSuccess }) {
               <p className="text-sm" style={{ color: "#94A3B8" }}>
                 <span className="font-semibold" style={{ color: "#6366F1" }}>{title}</span> assigned to{" "}
                 <span className="font-semibold">
-                  {isBulk ? `${students.length} students` : students[0].full_name}
+                  {entireClass ? "the whole class" : isBulk ? `${students.length} students` : (students[0]?.full_name ?? "the student")}
                 </span>
               </p>
               <p className="text-xs mt-1" style={{ color: "#94A3B8" }}>
@@ -317,13 +354,20 @@ function AssignModal({ students, onClose, onSuccess }) {
                 </button>
               </div>
 
-              {/* Recipient list (bulk only) */}
-              {isBulk && (
-                <div className="mb-4 p-3 rounded-xl"
-                  style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", maxHeight: "120px", overflowY: "auto" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "#94A3B8" }}>
-                    Recipients ({students.length})
+              {/* Recipients */}
+              <div className="mb-4 p-3 rounded-xl"
+                style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", maxHeight: "140px", overflowY: "auto" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#94A3B8" }}>
+                    {entireClass ? "Recipients: entire class" : `Recipients (${students.length})`}
                   </p>
+                  <label className="flex items-center gap-1.5 text-[11px] font-medium cursor-pointer select-none" style={{ color: "#475569" }}>
+                    <input type="checkbox" checked={entireClass} onChange={e => setEntireClass(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded accent-[#6366F1]" />
+                    Assign to entire class
+                  </label>
+                </div>
+                {!entireClass && (
                   <div className="flex flex-wrap gap-1.5">
                     {students.map(s => (
                       <span key={s.student_id}
@@ -334,8 +378,8 @@ function AssignModal({ students, onClose, onSuccess }) {
                       </span>
                     ))}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Assignment title */}
               <div className="space-y-4">
@@ -357,7 +401,7 @@ function AssignModal({ students, onClose, onSuccess }) {
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Subject</label>
                     <select
                       value={subject}
-                      onChange={e => setSubject(e.target.value)}
+                      onChange={e => handleSubjectChange(e.target.value)}
                       className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all"
                       style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "white" }}
                       onFocus={e => e.target.style.border = "1.5px solid #6366F1"}
@@ -369,9 +413,26 @@ function AssignModal({ students, onClose, onSuccess }) {
                     </select>
                   </div>
                   <div>
+                    <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Chapter</label>
+                    <select
+                      value={chapter}
+                      onChange={e => setChapter(e.target.value)}
+                      disabled={!subject}
+                      className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all disabled:opacity-60"
+                      style={{ border: "1.5px solid #E2E8F0", color: "#0F172A", background: "white" }}
+                      onFocus={e => e.target.style.border = "1.5px solid #6366F1"}
+                      onBlur={e  => e.target.style.border = "1.5px solid #E2E8F0"}>
+                      <option value="">{subject ? "-- Optional --" : "Select subject first"}</option>
+                      {chapters.map(c => (
+                        <option key={c.chapter_id} value={c.chapter_id}>{c.chapter_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
                     <label className="block text-xs font-semibold mb-1.5" style={{ color: "#475569" }}>Due Date *</label>
                     <input
                       type="date"
+                      min={todayISO()}
                       value={dueDate}
                       onChange={e => setDueDate(e.target.value)}
                       className="w-full px-3 py-2.5 text-sm rounded-xl focus:outline-none transition-all"

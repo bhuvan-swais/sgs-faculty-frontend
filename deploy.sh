@@ -35,7 +35,7 @@ npm cache clean --force 2>/dev/null || true
 echo "⚙️  Restarting PM2..."
 pm2 describe sgs-faculty-frontend > /dev/null 2>&1 \
   && pm2 restart sgs-faculty-frontend \
-  || PORT=4002 pm2 start "node .next/standalone/server.js" --name "sgs-faculty-frontend"
+  || PORT=3002 pm2 start "node .next/standalone/server.js" --name "sgs-faculty-frontend"
 
 pm2 save
 
