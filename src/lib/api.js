@@ -329,3 +329,25 @@ export async function assignQuestionPaper(paper, dueDate) {
     }),
   });
 }
+
+/* ─── Parent notifications ──────────────────────────────────────────────────
+   The teacher's record of what was sent to a student's parents. `sent_via` is
+   "manual" — the row is the record, not proof of delivery. */
+
+export async function sendParentNotification({ studentId, type, message }) {
+  return request("/api/v1/parent-notifications", {
+    method: "POST",
+    body: JSON.stringify({ student_id: studentId, notification_type: type, message }),
+  });
+}
+
+export async function fetchParentNotifications(studentId) {
+  const qs = studentId ? `?student_id=${studentId}` : "";
+  const data = await request(`/api/v1/parent-notifications${qs}`);
+  return data?.notifications ?? [];
+}
+
+/** Who an assignment went to, with what each student submitted. */
+export async function fetchAssignmentStudents(assignmentId) {
+  return request(`/api/v1/assignments/${assignmentId}/students`);
+}

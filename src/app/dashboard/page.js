@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import SubmissionsModal from "@/components/assignments/SubmissionsModal";
 import { useAuth } from "@/context/AuthContext";
 import { useNotes } from "@/context/NotesContext";
 import Link from "next/link";
@@ -25,6 +26,9 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { notes, totalNotes, isLoading } = useNotes();
   const [assignments, setAssignments] = useState([]);
+  // #88: the card used to show only a count; clicking it now lists who
+  // submitted and what they turned in.
+  const [openAssignment, setOpenAssignment] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem("swais_faculty_token");
@@ -390,7 +394,14 @@ export default function DashboardPage() {
               const allDone = a.submittedCount === a.totalStudents;
               const pendingCount = a.totalStudents - a.submittedCount;
               return (
-                <div key={a.id} className="p-3.5 rounded-xl" style={{ border: "1px solid #E2E8F0" }}>
+                <div key={a.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpenAssignment({ id: a.id, title: a.title })}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenAssignment({ id: a.id, title: a.title }); } }}
+                  title="View submissions"
+                  className="p-3.5 rounded-xl cursor-pointer transition-colors hover:bg-slate-50"
+                  style={{ border: "1px solid #E2E8F0" }}>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-semibold truncate" style={{ color: "#0F172A" }}>{a.title}</p>
                     {allDone ? (
@@ -416,6 +427,14 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {openAssignment && (
+        <SubmissionsModal
+          assignmentId={openAssignment.id}
+          title={openAssignment.title}
+          onClose={() => setOpenAssignment(null)}
+        />
+      )}
     </div>
   );
 }
