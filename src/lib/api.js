@@ -377,3 +377,27 @@ export async function fetchParentNotifications(studentId) {
 export async function fetchAssignmentStudents(assignmentId) {
   return request(withClass(`/api/v1/assignments/${assignmentId}/students`));
 }
+
+/* ── Parent conversations ────────────────────────────────────────────────────
+   The teacher's side of the Communication Centre. A parent starts a thread
+   about their child and addresses it to one teacher; these read it and reply.
+
+   Deliberately not class-scoped: a parent writes to a *teacher*, and that
+   teacher should see the thread whichever class the child is in. So no
+   withClass() here, unlike most of the calls above. */
+
+export async function fetchConversations() {
+  return request("/api/v1/conversations");
+}
+
+/** The full thread. Fetching it marks the parent's messages as read. */
+export async function fetchConversation(convId) {
+  return request(`/api/v1/conversations/${convId}`);
+}
+
+export async function replyToConversation(convId, message) {
+  return request(`/api/v1/conversations/${convId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+}
