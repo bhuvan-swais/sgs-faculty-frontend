@@ -347,8 +347,17 @@ export default function DashboardPage() {
               const days = getDueDays(a.dueDate);
               const isUrgent = days <= 1;
               return (
+                /* Opens the same submissions view as a Completion Alerts card.
+                   These were the only assignment cards on the dashboard that
+                   did nothing when clicked, which read as the view being
+                   broken rather than as this list simply not being clickable. */
                 <div key={a.id}
-                  className="flex items-center justify-between gap-3 p-3.5 rounded-xl"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setOpenAssignment({ id: a.id, title: a.title })}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpenAssignment({ id: a.id, title: a.title }); } }}
+                  title="View submissions"
+                  className="flex items-center justify-between gap-3 p-3.5 rounded-xl cursor-pointer transition-colors hover:bg-slate-50"
                   style={{
                     border: `1px solid ${isUrgent ? "rgba(239,68,68,0.2)" : "#E2E8F0"}`,
                     background: isUrgent ? "#FEF2F210" : "transparent",
